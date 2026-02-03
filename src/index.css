@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    ui-sans-serif, -system-ui, sans-serif;
+  background-color: #020617; /* slate-950 */
+  color: #e5e7eb; /* slate-200 */
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
