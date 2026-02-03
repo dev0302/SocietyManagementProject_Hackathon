@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 function Footer() {
   return (
@@ -8,6 +9,7 @@ function Footer() {
           © {new Date().getFullYear()} Cozen Society Platform. All rights reserved.
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
+          <Link to="/about" className="transition-colors hover:text-sky-400">About</Link>
           <span className="transition-colors hover:text-slate-300">Audit-first</span>
           <span className="transition-colors hover:text-slate-300">Role-based access</span>
           <span className="transition-colors hover:text-slate-300">One-student-one-society</span>
