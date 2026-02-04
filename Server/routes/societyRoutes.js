@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createSociety,
+  updateSociety,
   createDepartment,
   createInvite,
   acceptInvite,
@@ -12,6 +13,9 @@ const router = Router();
 
 // Faculty creates societies
 router.post("/", auth, isFaculty, createSociety);
+
+// Faculty updates their society (where they are coordinator)
+router.patch("/:societyId", auth, isFaculty, updateSociety);
 
 // Core creates departments within a society
 router.post("/departments", auth, isCore, createDepartment);

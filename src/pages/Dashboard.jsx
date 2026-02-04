@@ -156,7 +156,8 @@ function Dashboard() {
                   Faculty dashboard
                 </CardTitle>
                 <CardDescription>
-                  Create and supervise societies, and keep recruitment aligned with policy.
+                  Create and supervise societies, and keep recruitment aligned with policy. If you
+                  are a faculty head for societies, you can manage them from the society section.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-slate-300">
@@ -167,6 +168,12 @@ function Dashboard() {
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => navigate("/faculty/create-society")}>
                     Create a society
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/admin/college")}
+                  >
+                    Manage my societies
                   </Button>
                 </div>
               </CardContent>

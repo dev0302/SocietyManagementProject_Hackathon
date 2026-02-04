@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { auth } from "../middlewares/auth.js";
-import { isAdmin } from "../middlewares/roles.js";
+import { isAdmin, isFaculty } from "../middlewares/roles.js";
 import {
   getMyCollege,
   upsertMyCollege,
@@ -9,8 +9,11 @@ import {
   getMySocietyRequests,
   getMyCollegeSocieties,
   getCollegeEvents,
+  getFacultySocieties,
+  getFacultyEvents,
   approveSocietyRequest,
   rejectSocietyRequest,
+  deleteSociety,
 } from "../controllers/collegeController.js";
 
 const router = Router();
@@ -29,6 +32,11 @@ router.get("/societies", auth, isAdmin, getMyCollegeSocieties);
 router.get("/events", auth, isAdmin, getCollegeEvents);
 router.post("/requests/:requestId/approve", auth, isAdmin, approveSocietyRequest);
 router.post("/requests/:requestId/reject", auth, isAdmin, rejectSocietyRequest);
+router.delete("/societies/:societyId", auth, isAdmin, deleteSociety);
+
+// Faculty: societies and events they coordinate
+router.get("/faculty/societies", auth, isFaculty, getFacultySocieties);
+router.get("/faculty/events", auth, isFaculty, getFacultyEvents);
 
 export default router;
 

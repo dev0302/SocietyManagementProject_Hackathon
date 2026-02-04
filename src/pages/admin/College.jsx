@@ -16,6 +16,8 @@ import {
   getMySocietyRequests,
   getMyCollegeSocieties,
   getCollegeEvents,
+  getFacultySocieties,
+  getFacultyEvents,
   approveSocietyRequest,
   rejectSocietyRequest,
 } from "@/services/operations/collegeAPI";
@@ -58,6 +60,22 @@ function College() {
 
   useEffect(() => {
     const loadCollegeAndRelations = async () => {
+      if (user?.role === ROLES.FACULTY) {
+        setLoading(true);
+        setLoadingSocieties(true);
+        try {
+          const res = await getFacultySocieties();
+          if (res.success) setSocieties(res.data || []);
+        } catch (err) {
+          toast.error(err?.message || "Failed to load societies");
+          setSocieties([]);
+        } finally {
+          setLoading(false);
+          setLoadingSocieties(false);
+        }
+        return;
+      }
+
       setLoading(true);
       try {
         const response = await getMyCollege();
@@ -71,10 +89,8 @@ function College() {
             profileImageUrl: response.data.profileImageUrl || "",
             phoneNumber: response.data.phoneNumber || "",
           }));
-          // Default view for existing college: show societies, keep editor collapsed
           setShowProfileEditor(false);
         } else {
-          // No college yet – open editor by default
           setShowProfileEditor(true);
         }
       } catch (error) {
@@ -84,7 +100,6 @@ function College() {
         setLoading(false);
       }
 
-      // Load requests and societies in parallel (best-effort)
       setLoadingRequests(true);
       setLoadingSocieties(true);
       try {
@@ -105,17 +120,20 @@ function College() {
     };
 
     loadCollegeAndRelations();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
-    if (activeNav !== "events" || !college) return;
+    if (activeNav !== "events") return;
+    if (isAdmin && !college) return;
     const loadEvents = async () => {
       setLoadingEvents(true);
       try {
         const params = {};
         if (eventFilter) params.filter = eventFilter;
         if (eventCategory) params.category = eventCategory;
-        const res = await getCollegeEvents(params);
+        const res = isFaculty
+          ? await getFacultyEvents(params)
+          : await getCollegeEvents(params);
         if (res.success) setEvents(res.data || []);
       } catch {
         setEvents([]);
@@ -124,7 +142,7 @@ function College() {
       }
     };
     loadEvents();
-  }, [activeNav, college, eventFilter, eventCategory]);
+  }, [activeNav, college, eventFilter, eventCategory, isAdmin, isFaculty]);
 
   const handleChange = (field) => (e) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
@@ -231,8 +249,11 @@ function College() {
     }
   };
 
+  const isAdmin = user?.role === ROLES.ADMIN;
+  const isFaculty = user?.role === ROLES.FACULTY;
+
   return (
-    <PrivateRoute allowedRoles={[ROLES.ADMIN]}>
+    <PrivateRoute allowedRoles={[ROLES.ADMIN, ROLES.FACULTY]}>
       <div className="flex min-h-screen flex-col bg-slate-950 text-slate-50">
         <Navbar />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
@@ -240,7 +261,7 @@ function College() {
             <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
               ← Back to Dashboard
             </Button>
-            {college && (
+            {isAdmin && college && (
               <div className="rounded-full bg-slate-900 px-3 py-1 text-xs text-slate-300">
                 College code:{" "}
                 <span className="font-mono text-sky-300">{college.uniqueCode}</span>
@@ -248,17 +269,44 @@ function College() {
             )}
           </div>
 
-          {college && (
+          {(college || isFaculty) && (
             <>
-              <Card className="mb-4">
-                <CardHeader>
-                  <CardTitle>{college.name}</CardTitle>
-                  <CardDescription>
-                    {college.email}
-                    {college.address && ` • ${college.address}`}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              {isAdmin && college && (
+                <div className="mb-4 flex items-start gap-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowProfileEditor((prev) => !prev);
+                      setShowAddSociety(false);
+                      setShowPendingRequests(false);
+                      setActiveNav("society");
+                    }}
+                  >
+                    <Pencil className="mr-1 h-4 w-4" />
+                    Edit profile
+                  </Button>
+                  <Card className="flex-1">
+                    <CardHeader>
+                      <CardTitle>{college.name}</CardTitle>
+                      <CardDescription>
+                        {college.email}
+                        {college.address && ` • ${college.address}`}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+              )}
+              {isFaculty && (
+                <Card className="mb-4">
+                  <CardHeader>
+                    <CardTitle>My societies</CardTitle>
+                    <CardDescription>
+                      Societies you coordinate as faculty head. Click to view details and manage.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
 
               <nav className="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1">
                 <button
@@ -287,7 +335,7 @@ function College() {
                 </button>
               </nav>
 
-              {activeNav === "society" && (
+              {activeNav === "society" && isAdmin && (
                 <div className="mb-6 flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
@@ -313,30 +361,20 @@ function College() {
                     <ListChecks className="mr-1 h-4 w-4" />
                     Pending requests
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowProfileEditor((prev) => !prev);
-                      setShowAddSociety(false);
-                      setShowPendingRequests(false);
-                    }}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Edit profile
-                  </Button>
                 </div>
               )}
             </>
           )}
 
-          {activeNav === "events" && college && (
+          {activeNav === "events" && (college || isFaculty) && (
             <div className="mb-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>College events</CardTitle>
+                  <CardTitle>{isFaculty ? "My society events" : "College events"}</CardTitle>
                   <CardDescription>
-                    Events from all societies. Filter by date and society type.
+                    {isFaculty
+                      ? "Events from societies you coordinate. Filter by date and type."
+                      : "Events from all societies. Filter by date and society type."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -410,7 +448,7 @@ function College() {
             </div>
           )}
 
-          {showProfileEditor && (!college || activeNav === "society") && (
+          {showProfileEditor && isAdmin && (!college || activeNav === "society") && (
             <Card>
               <CardHeader>
                 <CardTitle>College profile</CardTitle>
@@ -496,7 +534,7 @@ function College() {
             </Card>
           )}
 
-          {college && activeNav === "society" && showAddSociety && (
+          {college && isAdmin && activeNav === "society" && showAddSociety && (
             <div className="mt-8">
               <Card>
                 <CardHeader>
@@ -537,7 +575,7 @@ function College() {
             </div>
           )}
 
-          {college && activeNav === "society" && showPendingRequests && (
+          {college && isAdmin && activeNav === "society" && showPendingRequests && (
             <div className="mt-8">
               <Card>
                 <CardHeader>
@@ -566,6 +604,11 @@ function College() {
                                 {r.facultyName && `Faculty: ${r.facultyName} `}
                                 {r.presidentName && `| President: ${r.presidentName}`}
                               </p>
+                              {r.facultyEmail && (
+                                <p className="mt-0.5 text-[11px] text-sky-400">
+                                  Faculty coordinator: {r.facultyEmail}
+                                </p>
+                              )}
                               <span className="mt-1 inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-sky-300">
                                 {r.category}
                               </span>
@@ -592,13 +635,15 @@ function College() {
             </div>
           )}
 
-          {college && activeNav === "society" && (
+          {(college || isFaculty) && activeNav === "society" && (
             <div className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>College societies</CardTitle>
+                  <CardTitle>{isFaculty ? "My societies" : "College societies"}</CardTitle>
                   <CardDescription>
-                    Societies that have been approved and belong to this college.
+                    {isFaculty
+                      ? "Societies you coordinate as faculty head."
+                      : "Societies that have been approved and belong to this college."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-slate-300">

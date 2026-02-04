@@ -3,6 +3,8 @@ import Event from "../models/Event.js";
 import OTP from "../models/OTP.js";
 import Society from "../models/Society.js";
 import SocietyRequest from "../models/SocietyRequest.js";
+import User from "../models/User.js";
+import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
 
 // Helper to generate a unique college code: 3 letters + 3 digits, e.g., ABC123
@@ -174,7 +176,7 @@ export const getCollegeByCode = async (req, res) => {
 // Public: society submits a request to join a college using the unique code.
 export const createSocietyRequest = async (req, res) => {
   try {
-    const { name, category, logoUrl, facultyName, presidentName, email, collegeCode } = req.body;
+    const { name, category, logoUrl, facultyName, presidentName, email, facultyEmail, collegeCode } = req.body;
 
     if (!name || !email || !collegeCode || !category) {
       return res.status(400).json({
@@ -199,6 +201,7 @@ export const createSocietyRequest = async (req, res) => {
       facultyName: facultyName?.trim() || "",
       presidentName: presidentName?.trim() || "",
       email: email.toLowerCase().trim(),
+      facultyEmail: facultyEmail?.toLowerCase().trim() || "",
       college: college._id,
       collegeCode: normalizedCode,
     });
@@ -321,6 +324,74 @@ export const getCollegeEvents = async (req, res) => {
   }
 };
 
+// Faculty: list societies where they are faculty coordinator
+export const getFacultySocieties = async (req, res) => {
+  try {
+    const facultyId = req.user.id;
+    const societies = await Society.find({
+      facultyCoordinator: facultyId,
+      isActive: true,
+    })
+      .sort({ name: 1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: societies,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch faculty societies.",
+    });
+  }
+};
+
+// Faculty: get events for their societies
+export const getFacultyEvents = async (req, res) => {
+  try {
+    const facultyId = req.user.id;
+    const societies = await Society.find({
+      facultyCoordinator: facultyId,
+      isActive: true,
+    }).select("_id category");
+
+    const societyIds = societies.map((s) => s._id);
+    if (societyIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const { filter, category } = req.query;
+    const match = { society: { $in: societyIds } };
+
+    const dateRange = filter ? getEventsDateRange(filter) : null;
+    if (dateRange) {
+      match.date = dateRange;
+    }
+
+    let filteredSocietyIds = societyIds;
+    if (category && ["TECH", "NON_TECH"].includes(category)) {
+      filteredSocietyIds = societies.filter((s) => s.category === category).map((s) => s._id);
+      if (filteredSocietyIds.length === 0) {
+        return res.status(200).json({ success: true, data: [] });
+      }
+      match.society = { $in: filteredSocietyIds };
+    }
+
+    const events = await Event.find(match)
+      .populate("society", "name category logoUrl")
+      .sort({ date: 1 })
+      .lean();
+
+    return res.status(200).json({ success: true, data: events });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch faculty events.",
+    });
+  }
+};
+
 // Admin: list societies under their college.
 export const getMyCollegeSocieties = async (req, res) => {
   try {
@@ -385,10 +456,21 @@ export const approveSocietyRequest = async (req, res) => {
       });
     }
 
+    let facultyCoordinatorId = adminId;
+    if (request.facultyEmail) {
+      const facultyUser = await User.findOne({
+        email: request.facultyEmail.toLowerCase(),
+        role: ROLES.FACULTY,
+      });
+      if (facultyUser) {
+        facultyCoordinatorId = facultyUser._id;
+      }
+    }
+
     const society = await Society.create({
       name: request.name.trim(),
       description: "",
-      facultyCoordinator: adminId,
+      facultyCoordinator: facultyCoordinatorId,
       college: college._id,
       category: request.category,
       logoUrl: request.logoUrl,
@@ -468,6 +550,56 @@ export const rejectSocietyRequest = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to reject society request.",
+    });
+  }
+};
+
+// Admin: delete (deactivate) a society under their college
+export const deleteSociety = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const { societyId } = req.params;
+
+    const college = await College.findOne({ admin: adminId });
+    if (!college) {
+      return res.status(400).json({
+        success: false,
+        message: "Admin does not have an associated college.",
+      });
+    }
+
+    const society = await Society.findOne({
+      _id: societyId,
+      college: college._id,
+    });
+
+    if (!society) {
+      return res.status(404).json({
+        success: false,
+        message: "Society not found or does not belong to your college.",
+      });
+    }
+
+    society.isActive = false;
+    await society.save();
+
+    await createAuditLog({
+      actorId: adminId,
+      actorRole: req.user.role,
+      action: "SOCIETY_DELETED",
+      targetModel: "Society",
+      targetId: String(society._id),
+      metadata: { name: society.name },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Society deleted successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete society.",
     });
   }
 };

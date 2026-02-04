@@ -54,6 +54,59 @@ export const createSociety = async (req, res) => {
   }
 };
 
+// Faculty updates their society (only if they are faculty coordinator)
+export const updateSociety = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const { name, description, logoUrl, category, facultyName, presidentName, contactEmail } = req.body;
+
+    const society = await Society.findById(societyId);
+    if (!society) {
+      return res.status(404).json({
+        success: false,
+        message: "Society not found.",
+      });
+    }
+
+    if (String(society.facultyCoordinator) !== String(req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to update this society.",
+      });
+    }
+
+    if (name !== undefined) society.name = name.trim();
+    if (description !== undefined) society.description = description?.trim() || "";
+    if (logoUrl !== undefined) society.logoUrl = logoUrl?.trim() || "";
+    if (category !== undefined && ["TECH", "NON_TECH"].includes(category)) society.category = category;
+    if (facultyName !== undefined) society.facultyName = facultyName?.trim() || "";
+    if (presidentName !== undefined) society.presidentName = presidentName?.trim() || "";
+    if (contactEmail !== undefined) society.contactEmail = contactEmail?.toLowerCase().trim() || "";
+
+    await society.save();
+
+    await createAuditLog({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "SOCIETY_UPDATED",
+      targetModel: "Society",
+      targetId: String(society._id),
+      metadata: {},
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Society updated successfully.",
+      data: society,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update society.",
+    });
+  }
+};
+
 // Core creates departments.
 export const createDepartment = async (req, res) => {
   try {

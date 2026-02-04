@@ -9,6 +9,15 @@ export const createSociety = async (data) => {
   }
 };
 
+export const updateSociety = async (societyId, data) => {
+  try {
+    const response = await apiConnector.patch(`/api/societies/${societyId}`, data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const createDepartment = async (data) => {
   try {
     const response = await apiConnector.post("/api/societies/departments", data);

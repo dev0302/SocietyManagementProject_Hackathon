@@ -23,6 +23,11 @@ const societyRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    facultyEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
     presidentName: {
       type: String,
       trim: true,

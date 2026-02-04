@@ -23,6 +23,7 @@ function SocietyOnboard() {
     category: "TECH",
     logoUrl: "",
     facultyName: "",
+    facultyEmail: "",
     presidentName: "",
     email: "",
     collegeCode: "",
@@ -76,6 +77,7 @@ function SocietyOnboard() {
         name: "",
         logoUrl: "",
         facultyName: "",
+        facultyEmail: "",
         presidentName: "",
         email: "",
       }));
@@ -156,6 +158,21 @@ function SocietyOnboard() {
                   onChange={handleChange("facultyName")}
                   placeholder="Faculty coordinator name"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">
+                  Faculty coordinator email (optional)
+                </label>
+                <Input
+                  type="email"
+                  value={formData.facultyEmail}
+                  onChange={handleChange("facultyEmail")}
+                  placeholder="faculty@college.edu"
+                />
+                <p className="text-[11px] text-slate-500">
+                  If the faculty has already signed up, enter their platform email to grant them
+                  society management rights.
+                </p>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-300">

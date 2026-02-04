@@ -1,22 +1,94 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Button from "@/components/ui/button";
 import PrivateRoute from "@/components/core/auth/PrivateRoute";
+import Input from "@/components/ui/input";
 import { getSocietyEvents } from "@/services/operations/eventAPI";
+import { deleteSociety } from "@/services/operations/collegeAPI";
+import { updateSociety } from "@/services/operations/societyAPI";
+import { ROLES } from "@/config/roles";
+import { Trash2, Pencil } from "lucide-react";
 
 function SocietyDetail() {
   const { state } = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const society = state;
+  const { user } = useSelector((s) => s.auth);
+  const [society, setSociety] = useState(state || null);
   const societyId = society?._id || id;
+
+  useEffect(() => {
+    if (state) setSociety(state);
+  }, [state]);
   const [events, setEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [eventFilter, setEventFilter] = useState("upcoming");
   const [eventCategory, setEventCategory] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const canDelete = user?.role === ROLES.ADMIN;
+  const facultyCoordinatorId = society?.facultyCoordinator?._id || society?.facultyCoordinator;
+  const canEdit = user?.role === ROLES.FACULTY && user?.id && String(facultyCoordinatorId) === String(user.id);
+
+  const handleEditClick = () => {
+    setEditForm({
+      name: society?.name || "",
+      description: society?.description || "",
+      logoUrl: society?.logoUrl || "",
+      category: society?.category || "TECH",
+      facultyName: society?.facultyName || "",
+      presidentName: society?.presidentName || "",
+      contactEmail: society?.contactEmail || "",
+    });
+    setShowEditForm(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!societyId) return;
+    setSaving(true);
+    try {
+      const res = await updateSociety(societyId, editForm);
+      if (res?.success && res?.data) {
+        toast.success("Society updated successfully.");
+        setSociety(res.data);
+        setShowEditForm(false);
+      } else {
+        toast.error(res?.message || "Failed to update society.");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to update society.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!societyId) return;
+    setDeleting(true);
+    try {
+      const res = await deleteSociety(societyId);
+      if (res?.success) {
+        toast.success("Society deleted successfully.");
+        navigate("/admin/college");
+      } else {
+        toast.error(res?.message || "Failed to delete society.");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete society.");
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   useEffect(() => {
     if (!societyId) return;
@@ -65,6 +137,30 @@ function SocietyDetail() {
                       <CardDescription className="mt-1">
                         {society.category}
                       </CardDescription>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {canEdit && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick()}
+                      >
+                        <Pencil className="mr-1 h-4 w-4" />
+                        Edit society
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={deleting}
+                      >
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Delete society
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -154,9 +250,110 @@ function SocietyDetail() {
                     )}
                   </div>
                 )}
+
+                {showEditForm && canEdit && (
+                  <div className="mt-6 border-t border-slate-800 pt-6">
+                    <p className="mb-3 font-medium text-slate-200">Edit society</p>
+                    <form onSubmit={handleSaveEdit} className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-400">Name</label>
+                        <Input
+                          value={editForm.name}
+                          onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-400">Description</label>
+                        <textarea
+                          value={editForm.description}
+                          onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                          className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-400">Logo URL</label>
+                        <Input
+                          value={editForm.logoUrl}
+                          onChange={(e) => setEditForm((p) => ({ ...p, logoUrl: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-400">Category</label>
+                        <select
+                          value={editForm.category}
+                          onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
+                          className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+                        >
+                          <option value="TECH">Tech</option>
+                          <option value="NON_TECH">Non-tech</option>
+                        </select>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-400">Faculty name</label>
+                          <Input
+                            value={editForm.facultyName}
+                            onChange={(e) => setEditForm((p) => ({ ...p, facultyName: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-400">President name</label>
+                          <Input
+                            value={editForm.presidentName}
+                            onChange={(e) => setEditForm((p) => ({ ...p, presidentName: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-slate-400">Contact email</label>
+                        <Input
+                          type="email"
+                          value={editForm.contactEmail}
+                          onChange={(e) => setEditForm((p) => ({ ...p, contactEmail: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="submit" disabled={saving}>
+                          {saving ? "Saving…" : "Save changes"}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => setShowEditForm(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ) : (
+          ) : null}
+
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="relative z-50 w-full max-w-md rounded-lg border border-slate-800 bg-slate-900 p-6 shadow-lg">
+                <h2 className="text-lg font-semibold text-slate-50">Delete society</h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  Are you sure you want to delete &quot;{society?.name}&quot;? This will remove it from your
+                  college. This action cannot be undone.
+                </p>
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting…" : "Delete"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!society ? (
             <Card>
               <CardContent className="py-12 text-center text-slate-400">
                 <p>Society details not available.</p>

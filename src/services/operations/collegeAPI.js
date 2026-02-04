@@ -81,3 +81,30 @@ export const getCollegeEvents = async (params = {}) => {
   }
 };
 
+export const deleteSociety = async (societyId) => {
+  try {
+    const response = await apiConnector.delete(`/api/college/societies/${societyId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getFacultySocieties = async () => {
+  try {
+    const response = await apiConnector.get("/api/college/faculty/societies");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getFacultyEvents = async (params = {}) => {
+  try {
+    const response = await apiConnector.get("/api/college/faculty/events", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
