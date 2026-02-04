@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Input from "@/components/ui/input";
 import Button from "@/components/ui/button";
 import { toast } from "sonner";
+import { createAnnouncement } from "@/services/operations/announcementAPI";
 
 function PostAnnouncement() {
   const [title, setTitle] = useState("");
@@ -23,22 +24,14 @@ function PostAnnouncement() {
 
     try {
       setSubmitting(true);
-      const response = await fetch("/api/announcements", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          title: title.trim(),
-          message: message.trim(),
-          audience,
-        }),
+
+      const data = await createAnnouncement({
+        title: title.trim(),
+        message: message.trim(),
+        audience,
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.message || "Failed to post announcement.");
       }
 

@@ -1,8 +1,8 @@
 import Announcement from "../models/Announcement.js";
-import Membership from "../models/Membership.js";
 import { createAuditLog } from "../utils/auditLogger.js";
 
-// Core members can post announcements for their society/department
+// Core members can post announcements. For now, announcements are only
+// linked to the creator; society/department are optional.
 export const createAnnouncement = async (req, res) => {
   try {
     const { title, message, audience = "ALL" } = req.body;
@@ -14,24 +14,10 @@ export const createAnnouncement = async (req, res) => {
       });
     }
 
-    const membership = await Membership.findOne({
-      student: req.user.id,
-      isActive: true,
-    });
-
-    if (!membership) {
-      return res.status(400).json({
-        success: false,
-        message: "Active membership not found for this user.",
-      });
-    }
-
     const announcement = await Announcement.create({
       title: title.trim(),
       message: message.trim(),
       audience,
-      society: membership.society,
-      department: membership.department || null,
       createdBy: req.user.id,
     });
 

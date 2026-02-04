@@ -20,7 +20,7 @@ const announcementSchema = new mongoose.Schema(
     society: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Society",
-      required: true,
+      default: null,
     },
     department: {
       type: mongoose.Schema.Types.ObjectId,
