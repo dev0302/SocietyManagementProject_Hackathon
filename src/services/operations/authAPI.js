@@ -45,6 +45,26 @@ export const changePassword = async (data) => {
   }
 };
 
+export const getInviteInfo = async (token) => {
+  try {
+    const response = await apiConnector.get("/api/auth/invite-info", {
+      params: { token },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const signupWithInvite = async (data) => {
+  try {
+    const response = await apiConnector.post("/api/auth/signup-with-invite", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // Call backend logout to clear cookie as well as any client state.
 export const logout = async () => {
   try {

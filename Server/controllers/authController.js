@@ -3,8 +3,13 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import PlatformConfig from "../models/PlatformConfig.js";
 import OTP from "../models/OTP.js";
+import Invite from "../models/Invite.js";
+import Membership from "../models/Membership.js";
+import Department from "../models/Department.js";
 import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
+
+const LINK_PLACEHOLDER_SUFFIX = "@invite-link.placeholder";
 
 // Helper: issues JWT in a consistent way
 const issueToken = (user) => {
@@ -327,6 +332,184 @@ export const registerStudent = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error while registering student.",
+    });
+  }
+};
+
+// Public: get invite details by token (for signup form display).
+export const getInviteByToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is required.",
+      });
+    }
+    const invite = await Invite.findOne({ token })
+      .populate("department", "name")
+      .populate("society", "name")
+      .lean();
+    if (!invite || invite.used) {
+      return res.status(404).json({
+        success: false,
+        message: "Invite is invalid or already used.",
+      });
+    }
+    if (invite.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite has expired.",
+      });
+    }
+    const isLinkInvite =
+      invite.email && invite.email.endsWith(LINK_PLACEHOLDER_SUFFIX);
+    return res.status(200).json({
+      success: true,
+      data: {
+        role: invite.role,
+        departmentName: invite.department?.name || "Department",
+        societyName: invite.society?.name || "Society",
+        email: isLinkInvite ? null : invite.email,
+        isLinkInvite,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load invite details.",
+    });
+  }
+};
+
+// Sign up with invite token: create account (no OTP) and enroll as head/member.
+export const signupWithInvite = async (req, res) => {
+  try {
+    const { token, email, password, confirmPassword, firstName, lastName } =
+      req.body;
+
+    if (!token || !email || !password || !confirmPassword || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Token, email, password, confirm password, first name and last name are required.",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match.",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters.",
+      });
+    }
+
+    const invite = await Invite.findOne({ token });
+    if (!invite || invite.used) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite is invalid or already used.",
+      });
+    }
+    if (invite.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite has expired.",
+      });
+    }
+
+    const isLinkInvite =
+      invite.email && invite.email.endsWith(LINK_PLACEHOLDER_SUFFIX);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isLinkInvite && invite.email.toLowerCase() !== normalizedEmail) {
+      return res.status(403).json({
+        success: false,
+        message: "This invite was sent to a different email address.",
+      });
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email already exists. Please log in and accept the invite from your dashboard.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userRole =
+      invite.role === ROLES.HEAD || invite.role === ROLES.CORE
+        ? invite.role
+        : ROLES.STUDENT;
+    const user = await User.create({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: userRole,
+    });
+
+    const existingMembership = await Membership.findOne({
+      student: user._id,
+      isActive: true,
+    });
+    if (existingMembership) {
+      existingMembership.isActive = false;
+      existingMembership.endedAt = new Date();
+      await existingMembership.save();
+    }
+
+    const membership = await Membership.create({
+      student: user._id,
+      society: invite.society,
+      department: invite.department || null,
+      role: invite.role,
+    });
+
+    invite.used = true;
+    invite.usedAt = new Date();
+    await invite.save();
+
+    if (invite.role === ROLES.HEAD && invite.department) {
+      await Department.findByIdAndUpdate(invite.department, {
+        head: user._id,
+      });
+    }
+
+    await createAuditLog({
+      actorId: user._id,
+      actorRole: user.role,
+      action: "INVITE_ACCEPTED",
+      targetModel: "Membership",
+      targetId: String(membership._id),
+      metadata: { inviteId: invite._id },
+    });
+
+    const jwtToken = issueToken(user);
+
+    return res.status(201).json({
+      success: true,
+      message: "Account created and you have been enrolled as Head of the department.",
+      token: jwtToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || "",
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to sign up with invite.",
     });
   }
 };

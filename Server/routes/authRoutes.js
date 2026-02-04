@@ -6,6 +6,8 @@ import {
   login,
   changePassword,
   logout,
+  getInviteByToken,
+  signupWithInvite,
 } from "../controllers/authController.js";
 import { auth } from "../middlewares/auth.js";
 
@@ -16,6 +18,8 @@ router.post("/register/admin", registerAdmin);
 router.post("/register/faculty", registerFaculty);
 router.post("/register/student", registerStudent);
 router.post("/login", login);
+router.get("/invite-info", getInviteByToken);
+router.post("/signup-with-invite", signupWithInvite);
 router.post("/change-password", auth, changePassword);
 router.post("/logout", auth, logout);
 
