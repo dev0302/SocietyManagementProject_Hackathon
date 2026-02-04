@@ -62,13 +62,13 @@ function SignupForm({ role: initialRole = "student" }) {
     setSendingOTP(true);
 
     try {
-      const response = await sendOTP(formData.email);
+      const response = await sendOTP(formData.email, accountType);
       if (response.success) {
         toast.success("OTP sent to your email. Please check your inbox.");
         setStep(2);
       }
     } catch (err) {
-      const errorMessage = err?.response?.data?.message || err?.message || "Failed to send OTP. Please try again.";
+      const errorMessage = err?.message || "Failed to send OTP. Please try again.";
       toast.error(errorMessage);
     } finally {
       setSendingOTP(false);
