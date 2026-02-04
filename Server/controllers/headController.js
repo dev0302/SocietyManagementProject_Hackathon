@@ -5,6 +5,51 @@ import { createAuditLog } from "../utils/auditLogger.js";
 
 const LINK_PLACEHOLDER_SUFFIX = "@invite-link.placeholder";
 
+// Head lists students who have joined as members in their department.
+export const listDepartmentMembers = async (req, res) => {
+  try {
+    const headMembership = await Membership.findOne({
+      student: req.user.id,
+      isActive: true,
+      role: ROLES.HEAD,
+    });
+    if (!headMembership || !headMembership.department) {
+      return res.status(400).json({
+        success: false,
+        message: "You must be a Head of a department to view members.",
+      });
+    }
+
+    const memberships = await Membership.find({
+      department: headMembership.department,
+      isActive: true,
+    })
+      .populate("student", "firstName lastName email")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const data = memberships.map((m) => ({
+      _id: m._id,
+      role: m.role,
+      student: m.student
+        ? {
+            id: m.student._id,
+            firstName: m.student.firstName,
+            lastName: m.student.lastName,
+            email: m.student.email,
+          }
+        : null,
+    }));
+
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load department members.",
+    });
+  }
+};
+
 // Head creates member-invite link for their department (no departmentId in body).
 export const createMemberInviteLink = async (req, res) => {
   try {

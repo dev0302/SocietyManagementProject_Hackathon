@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  fetchDepartmentMembers,
   createMemberInviteLink,
   createMemberInviteByEmail,
 } from "@/services/operations/headAPI";
@@ -39,6 +40,8 @@ function Dashboard() {
   const [headInviteLinkLoading, setHeadInviteLinkLoading] = useState(false);
   const [headInviteEmail, setHeadInviteEmail] = useState("");
   const [headInviteEmailLoading, setHeadInviteEmailLoading] = useState(false);
+  const [headMembers, setHeadMembers] = useState([]);
+  const [headMembersLoading, setHeadMembersLoading] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -87,6 +90,27 @@ function Dashboard() {
 
     loadCollege();
   }, [user.role]);
+
+  const loadHeadMembers = async () => {
+    if (user?.role !== ROLES.HEAD) return;
+    try {
+      setHeadMembersLoading(true);
+      const data = await fetchDepartmentMembers();
+      if (data?.success && Array.isArray(data.data)) {
+        setHeadMembers(data.data);
+      } else {
+        setHeadMembers([]);
+      }
+    } catch {
+      setHeadMembers([]);
+    } finally {
+      setHeadMembersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === ROLES.HEAD) loadHeadMembers();
+  }, [user?.role]);
 
   const getDashboardContent = () => {
     switch (user.role) {
@@ -302,7 +326,12 @@ function Dashboard() {
             </Card>
           </motion.div>
         );
-      case ROLES.HEAD:
+      case ROLES.HEAD: {
+        const memberLabel = (m) => {
+          if (!m?.student) return "—";
+          const n = [m.student.firstName, m.student.lastName].filter(Boolean).join(" ");
+          return n || m.student.email || "—";
+        };
         return (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -398,6 +427,11 @@ function Dashboard() {
                               toast.success("Invite created. Share the link with the user.");
                               if (data?.data?.link) setHeadInviteLink(data.data.link);
                               setHeadInviteEmail("");
+                              // Refetch members so list stays in sync with backend
+                              const refetch = await fetchDepartmentMembers();
+                              if (refetch?.success && Array.isArray(refetch.data)) {
+                                setHeadMembers(refetch.data);
+                              }
                             } else throw new Error(data?.message);
                           } catch (err) {
                             toast.error(err?.message || "Failed to send invite.");
@@ -422,8 +456,58 @@ function Dashboard() {
                 )}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base">Department members</CardTitle>
+                  <CardDescription>
+                    Students who have joined your department as members.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadHeadMembers}
+                  disabled={headMembersLoading}
+                >
+                  {headMembersLoading ? "Refreshing…" : "Refresh"}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {headMembersLoading ? (
+                  <p className="text-sm text-slate-400">Loading members…</p>
+                ) : headMembers.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No members yet. Use &quot;Add members&quot; to invite students.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {headMembers.map((m) => (
+                      <div
+                        key={m._id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-slate-100">
+                            {memberLabel(m)}
+                          </p>
+                          {m.student?.email && (
+                            <p className="text-xs text-slate-400">{m.student.email}</p>
+                          )}
+                        </div>
+                        <span className="rounded-full bg-slate-700/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-300">
+                          {m.role === "HEAD" ? "Head" : "Member"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
         );
+      }
       default:
         return (
           <motion.div
