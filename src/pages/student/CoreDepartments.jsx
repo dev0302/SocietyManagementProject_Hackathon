@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PrivateRoute from "@/components/core/auth/PrivateRoute";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ROLES } from "@/config/roles";
+import { toast } from "sonner";
+import { fetchDepartments } from "@/services/operations/coreAPI";
 
-const departments = [
+const initialDepartments = [
   {
     id: 1,
     name: "Technical",
@@ -33,6 +35,23 @@ const departments = [
 ];
 
 function CoreDepartments() {
+  const [departments, setDepartments] = useState(initialDepartments);
+
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const data = await fetchDepartments();
+        if (data?.success && Array.isArray(data.data)) {
+          setDepartments(data.data);
+        }
+      } catch (error) {
+        toast.error(error.message || "Failed to load departments from backend.");
+      }
+    };
+
+    loadDepartments();
+  }, []);
+
   return (
     <PrivateRoute allowedRoles={[ROLES.CORE]}>
       <div className="flex min-h-screen flex-col bg-slate-950 text-slate-50">
