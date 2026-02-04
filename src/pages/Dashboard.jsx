@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Navigate } from "react-router-dom";
@@ -9,14 +9,37 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
+import { fetchMyAnnouncements } from "@/services/operations/announcementAPI";
 
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const [coreAnnouncements, setCoreAnnouncements] = useState([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  useEffect(() => {
+    const loadAnnouncements = async () => {
+      if (user.role !== ROLES.CORE) return;
+      try {
+        setLoadingAnnouncements(true);
+        const data = await fetchMyAnnouncements();
+        if (data?.success && Array.isArray(data.data)) {
+          setCoreAnnouncements(data.data);
+        }
+      } catch (error) {
+        // silently ignore on dashboard; we don't want to block the view
+        // console error is handled by interceptor if needed
+      } finally {
+        setLoadingAnnouncements(false);
+      }
+    };
+
+    loadAnnouncements();
+  }, [user.role]);
 
   const getDashboardContent = () => {
     switch (user.role) {
@@ -119,6 +142,47 @@ function Dashboard() {
                     View Departments &amp; Heads
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Announcements</CardTitle>
+                <CardDescription>
+                  Announcements you have posted recently.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingAnnouncements ? (
+                  <p className="text-sm text-slate-400">Loading announcements...</p>
+                ) : coreAnnouncements.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No announcements posted yet. Use &quot;Post Announcement&quot; to create one.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {coreAnnouncements.map((a) => (
+                      <div
+                        key={a._id}
+                        className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-medium text-slate-100">
+                            {a.title}
+                          </h3>
+                          <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-sky-300">
+                            {a.audience || "ALL"}
+                          </span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+                          {a.message}
+                        </p>
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {a.createdAt ? new Date(a.createdAt).toLocaleString() : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

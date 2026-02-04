@@ -9,3 +9,12 @@ export const createAnnouncement = async (data) => {
   }
 };
 
+export const fetchMyAnnouncements = async () => {
+  try {
+    const response = await apiConnector.get("/api/announcements/me");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+

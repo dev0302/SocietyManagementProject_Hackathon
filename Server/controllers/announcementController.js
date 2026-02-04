@@ -43,3 +43,23 @@ export const createAnnouncement = async (req, res) => {
   }
 };
 
+// List announcements created by the current core user, newest first.
+export const getMyAnnouncements = async (req, res) => {
+  try {
+    const announcements = await Announcement.find({ createdBy: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: announcements,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load announcements.",
+    });
+  }
+};
+
