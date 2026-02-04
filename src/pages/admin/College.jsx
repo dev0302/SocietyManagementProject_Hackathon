@@ -89,13 +89,15 @@ function College() {
             profileImageUrl: response.data.profileImageUrl || "",
             phoneNumber: response.data.phoneNumber || "",
           }));
-          setShowProfileEditor(false);
+          // Show editor if college name is empty (newly created)
+          setShowProfileEditor(!response.data.name || !response.data.name.trim());
         } else {
           setShowProfileEditor(true);
         }
       } catch (error) {
         const message = error?.message || "Failed to load college profile";
         toast.error(message);
+        setShowProfileEditor(true);
       } finally {
         setLoading(false);
       }
@@ -121,6 +123,9 @@ function College() {
 
     loadCollegeAndRelations();
   }, [user?.role]);
+
+  const isAdmin = user?.role === ROLES.ADMIN;
+  const isFaculty = user?.role === ROLES.FACULTY;
 
   useEffect(() => {
     if (activeNav !== "events") return;
@@ -249,9 +254,6 @@ function College() {
     }
   };
 
-  const isAdmin = user?.role === ROLES.ADMIN;
-  const isFaculty = user?.role === ROLES.FACULTY;
-
   return (
     <PrivateRoute allowedRoles={[ROLES.ADMIN, ROLES.FACULTY]}>
       <div className="flex min-h-screen flex-col bg-slate-950 text-slate-50">
@@ -269,101 +271,107 @@ function College() {
             )}
           </div>
 
+          {loading && (
+            <Card>
+              <CardContent className="py-12 text-center text-slate-400">
+                <p>Loading college profile...</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {isAdmin && college && (
+            <div className="mb-4 flex items-start gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowProfileEditor((prev) => !prev);
+                  setShowAddSociety(false);
+                  setShowPendingRequests(false);
+                  setActiveNav("society");
+                }}
+              >
+                <Pencil className="mr-1 h-4 w-4" />
+                Edit profile
+              </Button>
+              <Card className="flex-1">
+                <CardHeader>
+                  <CardTitle>{college.name}</CardTitle>
+                  <CardDescription>
+                    {college.email}
+                    {college.address && ` • ${college.address}`}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+          )}
+          {isFaculty && (
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>My societies</CardTitle>
+                <CardDescription>
+                  Societies you coordinate as faculty head. Click to view details and manage.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+
           {(college || isFaculty) && (
-            <>
-              {isAdmin && college && (
-                <div className="mb-4 flex items-start gap-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowProfileEditor((prev) => !prev);
-                      setShowAddSociety(false);
-                      setShowPendingRequests(false);
-                      setActiveNav("society");
-                    }}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Edit profile
-                  </Button>
-                  <Card className="flex-1">
-                    <CardHeader>
-                      <CardTitle>{college.name}</CardTitle>
-                      <CardDescription>
-                        {college.email}
-                        {college.address && ` • ${college.address}`}
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                </div>
-              )}
-              {isFaculty && (
-                <Card className="mb-4">
-                  <CardHeader>
-                    <CardTitle>My societies</CardTitle>
-                    <CardDescription>
-                      Societies you coordinate as faculty head. Click to view details and manage.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
+            <nav className="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveNav("society")}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeNav === "society"
+                    ? "bg-slate-800 text-slate-100"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Users2 className="h-4 w-4" />
+                Society
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveNav("events")}
+                className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  activeNav === "events"
+                    ? "bg-slate-800 text-slate-100"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Calendar className="h-4 w-4" />
+                Events
+              </button>
+            </nav>
+          )}
 
-              <nav className="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveNav("society")}
-                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    activeNav === "society"
-                      ? "bg-slate-800 text-slate-100"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <Users2 className="h-4 w-4" />
-                  Society
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveNav("events")}
-                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    activeNav === "events"
-                      ? "bg-slate-800 text-slate-100"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <Calendar className="h-4 w-4" />
-                  Events
-                </button>
-              </nav>
-
-              {activeNav === "society" && isAdmin && (
-                <div className="mb-6 flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddSociety((prev) => !prev);
-                      setShowPendingRequests(false);
-                      setShowProfileEditor(false);
-                    }}
-                  >
-                    <PlusCircle className="mr-1 h-4 w-4" />
-                    Add society
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowPendingRequests((prev) => !prev);
-                      setShowAddSociety(false);
-                      setShowProfileEditor(false);
-                    }}
-                  >
-                    <ListChecks className="mr-1 h-4 w-4" />
-                    Pending requests
-                  </Button>
-                </div>
-              )}
-            </>
+          {activeNav === "society" && isAdmin && college && (
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowAddSociety((prev) => !prev);
+                  setShowPendingRequests(false);
+                  setShowProfileEditor(false);
+                }}
+              >
+                <PlusCircle className="mr-1 h-4 w-4" />
+                Add society
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowPendingRequests((prev) => !prev);
+                  setShowAddSociety(false);
+                  setShowProfileEditor(false);
+                }}
+              >
+                <ListChecks className="mr-1 h-4 w-4" />
+                Pending requests
+              </Button>
+            </div>
           )}
 
           {activeNav === "events" && (college || isFaculty) && (
