@@ -353,7 +353,7 @@ function SocietyDetail() {
             </div>
           )}
 
-          {!society ? (
+          {!society && (
             <Card>
               <CardContent className="py-12 text-center text-slate-400">
                 <p>Society details not available.</p>
