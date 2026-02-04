@@ -107,21 +107,51 @@ export const updateSociety = async (req, res) => {
   }
 };
 
-// Core creates departments.
+// Core creates departments (societyId optional: use from membership or create society).
 export const createDepartment = async (req, res) => {
   try {
     const { societyId, name } = req.body;
 
-    if (!societyId || !name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: "societyId and name are required.",
+        message: "Name is required.",
       });
     }
 
+    let society = null;
+    if (societyId) {
+      society = await Society.findById(societyId);
+      if (!society) {
+        return res.status(404).json({ success: false, message: "Society not found." });
+      }
+    }
+    if (!society) {
+      const membership = await Membership.findOne({ student: req.user.id, isActive: true });
+      if (membership) {
+        society = await Society.findById(membership.society);
+      }
+    }
+    if (!society) {
+      society = await Society.findOne({ facultyCoordinator: req.user.id });
+      if (!society) {
+        society = await Society.create({
+          name: `Society ${req.user.id}`.trim(),
+          description: "Created by core member",
+          facultyCoordinator: req.user.id,
+        });
+        await Membership.create({
+          student: req.user.id,
+          society: society._id,
+          role: ROLES.CORE,
+        });
+      }
+    }
+
     const department = await Department.create({
-      society: societyId,
+      society: society._id,
       name: name.trim(),
+      createdBy: req.user.id,
     });
 
     await createAuditLog({
@@ -130,7 +160,7 @@ export const createDepartment = async (req, res) => {
       action: "DEPARTMENT_CREATED",
       targetModel: "Department",
       targetId: String(department._id),
-      metadata: { societyId },
+      metadata: { societyId: String(society._id) },
     });
 
     return res.status(201).json({
@@ -232,8 +262,9 @@ export const acceptInvite = async (req, res) => {
       });
     }
 
+    const isLinkInvite = invite.email && invite.email.endsWith("@invite-link.placeholder");
     const emailMatches = invite.email === req.user.email.toLowerCase();
-    if (!emailMatches) {
+    if (!isLinkInvite && !emailMatches) {
       return res.status(403).json({
         success: false,
         message: "Invite does not belong to this user.",
@@ -262,6 +293,10 @@ export const acceptInvite = async (req, res) => {
     invite.used = true;
     invite.usedAt = new Date();
     await invite.save();
+
+    if (invite.role === ROLES.HEAD && invite.department) {
+      await Department.findByIdAndUpdate(invite.department, { head: req.user.id });
+    }
 
     await createAuditLog({
       actorId: req.user.id,

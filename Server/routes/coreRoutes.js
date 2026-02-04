@@ -5,6 +5,9 @@ import {
   handleMemberDecision,
   handleMemberRoleChange,
   getDepartmentsSummary,
+  listDepartments,
+  createHeadInviteLink,
+  createHeadInviteByEmail,
 } from "../controllers/coreController.js";
 
 const router = Router();
@@ -14,7 +17,10 @@ router.use(auth, isCore);
 
 router.post("/members/decision", handleMemberDecision);
 router.post("/members/role", handleMemberRoleChange);
-router.get("/departments", getDepartmentsSummary);
+router.get("/departments", listDepartments);
+router.get("/departments/summary", getDepartmentsSummary);
+router.post("/departments/invite-link", createHeadInviteLink);
+router.post("/departments/invite-email", createHeadInviteByEmail);
 
 export default router;
 

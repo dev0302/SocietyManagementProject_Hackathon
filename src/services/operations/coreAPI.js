@@ -27,3 +27,26 @@ export const fetchDepartments = async () => {
   }
 };
 
+export const createHeadInviteLink = async (departmentId) => {
+  try {
+    const response = await apiConnector.post("/api/core/departments/invite-link", {
+      departmentId,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createHeadInviteByEmail = async (departmentId, email) => {
+  try {
+    const response = await apiConnector.post("/api/core/departments/invite-email", {
+      departmentId,
+      email,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
