@@ -1,4 +1,149 @@
+import Department from "../models/Department.js";
+import Invite from "../models/Invite.js";
+import Membership from "../models/Membership.js";
+import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
+
+const LINK_PLACEHOLDER_SUFFIX = "@invite-link.placeholder";
+
+// Shared helper: get departments list for the current core user.
+async function getDepartmentsForUser(userId) {
+  const membership = await Membership.findOne({ student: userId, isActive: true });
+  const byCreatedBy = await Department.find({ createdBy: userId })
+    .populate("head", "firstName lastName email")
+    .sort({ createdAt: -1 })
+    .lean();
+  if (membership) {
+    const bySociety = await Department.find({ society: membership.society })
+      .populate("head", "firstName lastName email")
+      .sort({ createdAt: -1 })
+      .lean();
+    const seen = new Set(bySociety.map((d) => String(d._id)));
+    byCreatedBy.forEach((d) => {
+      if (!seen.has(String(d._id))) bySociety.push(d);
+    });
+    return bySociety;
+  }
+  return byCreatedBy;
+}
+
+// List departments for the current core user (from their society/societies).
+// Returns real DB data with head populated and membersCount.
+export const listDepartments = async (req, res) => {
+  try {
+    const departments = await getDepartmentsForUser(req.user.id);
+    const departmentIds = departments.map((d) => d._id);
+    const counts = await Membership.aggregate([
+      { $match: { department: { $in: departmentIds }, isActive: true } },
+      { $group: { _id: "$department", count: { $sum: 1 } } },
+    ]);
+    const countMap = Object.fromEntries(
+      counts.map((c) => [String(c._id), c.count])
+    );
+    const data = departments.map((d) => ({
+      ...d,
+      membersCount: countMap[String(d._id)] ?? 0,
+    }));
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load departments.",
+    });
+  }
+};
+
+// Create head-invite link for a department (whoever uses the link becomes HEAD).
+export const createHeadInviteLink = async (req, res) => {
+  try {
+    const { departmentId } = req.body;
+    if (!departmentId) {
+      return res.status(400).json({ success: false, message: "departmentId is required." });
+    }
+    const department = await Department.findById(departmentId);
+    if (!department) {
+      return res.status(404).json({ success: false, message: "Department not found." });
+    }
+    const token = `head-${departmentId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const invite = await Invite.create({
+      email: `link-${token}${LINK_PLACEHOLDER_SUFFIX}`,
+      society: department.society,
+      department: department._id,
+      role: ROLES.HEAD,
+      token,
+      expiresAt,
+      createdBy: req.user.id,
+    });
+    await createAuditLog({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "HEAD_INVITE_LINK_CREATED",
+      targetModel: "Invite",
+      targetId: String(invite._id),
+      metadata: { departmentId },
+    });
+    const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const link = `${baseUrl}/accept-invite?token=${encodeURIComponent(token)}`;
+    return res.status(201).json({
+      success: true,
+      data: { link, token, expiresAt },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create invite link.",
+    });
+  }
+};
+
+// Create head invite by email for a department.
+export const createHeadInviteByEmail = async (req, res) => {
+  try {
+    const { departmentId, email } = req.body;
+    if (!departmentId || !email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "departmentId and email are required.",
+      });
+    }
+    const department = await Department.findById(departmentId);
+    if (!department) {
+      return res.status(404).json({ success: false, message: "Department not found." });
+    }
+    const token = `head-${departmentId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const invite = await Invite.create({
+      email: email.toLowerCase().trim(),
+      society: department.society,
+      department: department._id,
+      role: ROLES.HEAD,
+      token,
+      expiresAt,
+      createdBy: req.user.id,
+    });
+    await createAuditLog({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "HEAD_INVITE_EMAIL_CREATED",
+      targetModel: "Invite",
+      targetId: String(invite._id),
+      metadata: { departmentId, email: invite.email },
+    });
+    const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const link = `${baseUrl}/accept-invite?token=${encodeURIComponent(token)}`;
+    return res.status(201).json({
+      success: true,
+      message: "Invite created. Share the link with the user.",
+      data: { link, token, expiresAt },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create invite.",
+    });
+  }
+};
 
 // These endpoints are intentionally lightweight and mostly for logging/demo purposes.
 
@@ -66,40 +211,23 @@ export const handleMemberRoleChange = async (req, res) => {
   }
 };
 
+// Same as listDepartments: returns real departments and heads for the core user.
 export const getDepartmentsSummary = async (req, res) => {
   try {
-    // For now, return a static summary similar to the frontend mock data.
-    const departments = [
-      {
-        id: 1,
-        name: "Technical",
-        head: "Arjun Mehta",
-        membersCount: 24,
-      },
-      {
-        id: 2,
-        name: "Design",
-        head: "Sara Khan",
-        membersCount: 15,
-      },
-      {
-        id: 3,
-        name: "Public Relations",
-        head: "Rohan Das",
-        membersCount: 18,
-      },
-      {
-        id: 4,
-        name: "Operations",
-        head: "Priya Iyer",
-        membersCount: 20,
-      },
-    ];
-
-    return res.status(200).json({
-      success: true,
-      data: departments,
-    });
+    const departments = await getDepartmentsForUser(req.user.id);
+    const departmentIds = departments.map((d) => d._id);
+    const counts = await Membership.aggregate([
+      { $match: { department: { $in: departmentIds }, isActive: true } },
+      { $group: { _id: "$department", count: { $sum: 1 } } },
+    ]);
+    const countMap = Object.fromEntries(
+      counts.map((c) => [String(c._id), c.count])
+    );
+    const data = departments.map((d) => ({
+      ...d,
+      membersCount: countMap[String(d._id)] ?? 0,
+    }));
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(500).json({
       success: false,
