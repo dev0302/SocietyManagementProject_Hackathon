@@ -8,11 +8,14 @@ import {
   Sparkles,
   LineChart,
 } from "lucide-react";
-import Button from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import Button from "@/components/ui/button";
+import { ROLES } from "@/config/roles";
 
 function HeroSection() {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
 
   return (
     <section className="relative overflow-hidden border-b border-slate-800/60 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(15,23,42,0.95),rgba(2,6,23,1))]">
@@ -68,7 +71,11 @@ function HeroSection() {
           >
             <Button
               size="lg"
-              onClick={() => navigate("/signup?role=student")}
+              onClick={() =>
+                user?.role === ROLES.FACULTY
+                  ? navigate("/admin/college")
+                  : navigate("/signup?role=student")
+              }
               className="group bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-400 text-slate-950 shadow-lg shadow-sky-500/30 hover:shadow-sky-500/50"
             >
               Get started in sandbox

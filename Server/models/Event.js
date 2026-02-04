@@ -11,6 +11,10 @@ const eventSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    posterUrl: {
+      type: String,
+      trim: true,
+    },
     venue: {
       type: String,
       trim: true,
@@ -18,6 +22,19 @@ const eventSchema = new mongoose.Schema(
     date: {
       type: Date,
       required: true,
+    },
+    eventType: {
+      type: String,
+      enum: ["TECH", "NON_TECH"],
+      default: "TECH",
+    },
+    sendReminder: {
+      type: Boolean,
+      default: false,
+    },
+    reminderAt: {
+      type: Date,
+      default: null,
     },
     society: {
       type: mongoose.Schema.Types.ObjectId,

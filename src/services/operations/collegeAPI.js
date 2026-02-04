@@ -90,6 +90,15 @@ export const deleteSociety = async (societyId) => {
   }
 };
 
+export const getFacultyCollege = async () => {
+  try {
+    const response = await apiConnector.get("/api/college/faculty/college");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const getFacultySocieties = async () => {
   try {
     const response = await apiConnector.get("/api/college/faculty/societies");
@@ -102,6 +111,53 @@ export const getFacultySocieties = async () => {
 export const getFacultyEvents = async (params = {}) => {
   try {
     const response = await apiConnector.get("/api/college/faculty/events", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getFacultyAllSocieties = async () => {
+  try {
+    const response = await apiConnector.get("/api/college/faculty/all-societies");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getFacultyAllEvents = async (params = {}) => {
+  try {
+    const response = await apiConnector.get("/api/college/faculty/all-events", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createSocietyInviteLink = async (facultyHeadEmail) => {
+  try {
+    const response = await apiConnector.post("/api/college/society-invite-link", {
+      facultyHeadEmail,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getSocietyInviteByToken = async (token) => {
+  try {
+    const response = await apiConnector.get("/api/college/society-invite", { params: { token } });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createSocietyFromInvite = async (data) => {
+  try {
+    const response = await apiConnector.post("/api/college/society-from-invite", data);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

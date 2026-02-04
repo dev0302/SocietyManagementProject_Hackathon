@@ -3,6 +3,7 @@ import Event from "../models/Event.js";
 import OTP from "../models/OTP.js";
 import Society from "../models/Society.js";
 import SocietyRequest from "../models/SocietyRequest.js";
+import SocietyInviteLink from "../models/SocietyInviteLink.js";
 import User from "../models/User.js";
 import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
@@ -324,6 +325,31 @@ export const getCollegeEvents = async (req, res) => {
   }
 };
 
+// Faculty: get the college to which their societies belong
+export const getFacultyCollege = async (req, res) => {
+  try {
+    const facultyId = req.user.id;
+    const society = await Society.findOne({
+      facultyCoordinator: facultyId,
+      isActive: true,
+    })
+      .populate("college")
+      .lean();
+    if (!society?.college) {
+      return res.status(200).json({ success: true, data: null });
+    }
+    return res.status(200).json({
+      success: true,
+      data: society.college,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch faculty college.",
+    });
+  }
+};
+
 // Faculty: list societies where they are faculty coordinator
 export const getFacultySocieties = async (req, res) => {
   try {
@@ -600,6 +626,265 @@ export const deleteSociety = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to delete society.",
+    });
+  }
+};
+
+// ----- Society invite link (admin creates link with faculty head email) -----
+
+// Admin: create society invite link with faculty head email
+export const createSocietyInviteLink = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const { facultyHeadEmail } = req.body;
+
+    if (!facultyHeadEmail || !String(facultyHeadEmail).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Faculty head email is required.",
+      });
+    }
+
+    const college = await College.findOne({ admin: adminId });
+    if (!college) {
+      return res.status(400).json({
+        success: false,
+        message: "Admin does not have an associated college.",
+      });
+    }
+
+    const email = String(facultyHeadEmail).trim().toLowerCase();
+    const token = `sil-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    const invite = await SocietyInviteLink.create({
+      college: college._id,
+      facultyHeadEmail: email,
+      token,
+      expiresAt,
+      createdBy: adminId,
+    });
+
+    const baseUrl =
+      process.env.CLIENT_URL || (req.get("origin") || "http://localhost:5173").replace(/\/$/, "");
+    const link = `${baseUrl}/society/onboard?token=${encodeURIComponent(invite.token)}`;
+
+    await createAuditLog({
+      actorId: adminId,
+      actorRole: req.user.role,
+      action: "SOCIETY_INVITE_LINK_CREATED",
+      targetModel: "SocietyInviteLink",
+      targetId: String(invite._id),
+      metadata: { facultyHeadEmail: email },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Society invite link created.",
+      data: { link, token: invite.token, facultyHeadEmail: email, expiresAt: invite.expiresAt },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create society invite link.",
+    });
+  }
+};
+
+// Public: get society invite by token (for onboarding page)
+export const getSocietyInviteByToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is required.",
+      });
+    }
+
+    const invite = await SocietyInviteLink.findOne({ token })
+      .populate("college", "name uniqueCode")
+      .lean();
+
+    if (!invite || invite.used) {
+      return res.status(404).json({
+        success: false,
+        message: "Invite not found or already used.",
+      });
+    }
+    if (invite.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite has expired.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        facultyHeadEmail: invite.facultyHeadEmail,
+        collegeName: invite.college?.name,
+        collegeCode: invite.college?.uniqueCode,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch invite.",
+    });
+  }
+};
+
+// Authenticated: create society from invite (user must match facultyHeadEmail)
+export const createSocietyFromInvite = async (req, res) => {
+  try {
+    const { token, name, description, category, logoUrl, facultyName, presidentName, contactEmail } =
+      req.body;
+
+    if (!token || !name) {
+      return res.status(400).json({
+        success: false,
+        message: "Token and society name are required.",
+      });
+    }
+
+    const invite = await SocietyInviteLink.findOne({ token }).populate("college");
+    if (!invite || invite.used) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite not found or already used.",
+      });
+    }
+    if (invite.expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invite has expired.",
+      });
+    if (invite.facultyHeadEmail !== req.user.email.toLowerCase()) {
+      return res.status(403).json({
+        success: false,
+        message: "This link is for a different email. Please log in with the faculty head email.",
+      });
+    }
+
+    const existing = await Society.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "A society with this name already exists.",
+      });
+    }
+
+    let userId = req.user.id;
+    const user = await User.findById(userId);
+    if (user.role !== ROLES.FACULTY) {
+      user.role = ROLES.FACULTY;
+      await user.save();
+    }
+
+    const society = await Society.create({
+      name: name.trim(),
+      description: description?.trim() || "",
+      facultyCoordinator: userId,
+      college: invite.college._id,
+      category: category === "NON_TECH" ? "NON_TECH" : "TECH",
+      logoUrl: logoUrl?.trim() || "",
+      facultyName: facultyName?.trim() || "",
+      presidentName: presidentName?.trim() || "",
+      contactEmail: contactEmail?.toLowerCase().trim() || req.user.email,
+    });
+
+    invite.used = true;
+    invite.usedAt = new Date();
+    invite.society = society._id;
+    await invite.save();
+
+    await createAuditLog({
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "SOCIETY_CREATED_FROM_INVITE",
+      targetModel: "Society",
+      targetId: String(society._id),
+      metadata: { inviteId: invite._id },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Society created successfully. You are the faculty head.",
+      data: society,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create society from invite.",
+    });
+  }
+};
+
+// Faculty: get all societies in the same college (for viewing others; read-only)
+export const getFacultyAllSocieties = async (req, res) => {
+  try {
+    const facultyId = req.user.id;
+    const mySociety = await Society.findOne({
+      facultyCoordinator: facultyId,
+      isActive: true,
+    }).select("college");
+    if (!mySociety?.college) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    const societies = await Society.find({
+      college: mySociety.college,
+      isActive: true,
+    })
+      .sort({ name: 1 })
+      .lean();
+    return res.status(200).json({ success: true, data: societies });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch societies.",
+    });
+  }
+};
+
+// Faculty: get all events from college (my societies + other societies) for viewing
+export const getFacultyAllEvents = async (req, res) => {
+  try {
+    const facultyId = req.user.id;
+    const mySocieties = await Society.find({
+      facultyCoordinator: facultyId,
+      isActive: true,
+    }).select("_id category college");
+    if (mySocieties.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    const collegeId = mySocieties[0].college;
+    if (!collegeId) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    const allSocietyIds = await Society.find({ college: collegeId, isActive: true })
+      .select("_id category")
+      .lean();
+    let ids = allSocietyIds.map((s) => s._id);
+    const { filter, category } = req.query;
+    if (category && ["TECH", "NON_TECH"].includes(category)) {
+      ids = allSocietyIds.filter((s) => s.category === category).map((s) => s._id);
+      if (ids.length === 0) {
+        return res.status(200).json({ success: true, data: [] });
+      }
+    }
+    const match = { society: { $in: ids } };
+    const dateRange = filter ? getEventsDateRange(filter) : null;
+    if (dateRange) match.date = dateRange;
+    const events = await Event.find(match)
+      .populate("society", "name category logoUrl")
+      .sort({ date: 1 })
+      .lean();
+    return res.status(200).json({ success: true, data: events });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch events.",
     });
   }
 };

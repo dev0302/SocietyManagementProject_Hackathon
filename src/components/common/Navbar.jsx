@@ -8,7 +8,6 @@ import {
   X,
   Search,
   Settings,
-  ChevronDown,
 } from "lucide-react";
 import { NavbarLinks } from "@/data/navbar-links";
 import { logout } from "@/redux/slices/authSlice";

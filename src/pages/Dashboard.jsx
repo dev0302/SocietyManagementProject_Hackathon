@@ -34,6 +34,11 @@ function Dashboard() {
     return <Navigate to="/login" replace />;
   }
 
+  // Faculty: redirect to college view (college details + Society | Events)
+  if (user.role === ROLES.FACULTY) {
+    return <Navigate to="/admin/college" replace />;
+  }
+
   useEffect(() => {
     const loadAnnouncements = async () => {
       if (user.role !== ROLES.CORE) return;
@@ -142,44 +147,7 @@ function Dashboard() {
           </motion.div>
         );
       case ROLES.FACULTY:
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="space-y-4"
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <LayoutDashboard className="h-4 w-4 text-sky-400" />
-                  Faculty dashboard
-                </CardTitle>
-                <CardDescription>
-                  Create and supervise societies, and keep recruitment aligned with policy. If you
-                  are a faculty head for societies, you can manage them from the society section.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm text-slate-300">
-                <p>
-                  Create societies you supervise, invite core members, and keep an eye on recruitment
-                  rounds without leaving this dashboard.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => navigate("/faculty/create-society")}>
-                    Create a society
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate("/admin/college")}
-                  >
-                    Manage my societies
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        );
+        return null; // Faculty redirects to /admin/college above
       case ROLES.STUDENT:
         return (
           <motion.div

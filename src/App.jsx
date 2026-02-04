@@ -17,6 +17,7 @@ import PostAnnouncement from "@/pages/student/PostAnnouncement";
 import CoreEvents from "@/pages/student/CoreEvents";
 import ManageMembers from "@/pages/student/ManageMembers";
 import CoreDepartments from "@/pages/student/CoreDepartments";
+import EventDetail from "@/pages/EventDetail";
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
       <Route path="/admin/college" element={<College />} />
       <Route path="/society/onboard" element={<SocietyOnboard />} />
       <Route path="/society/:id" element={<SocietyDetail />} />
+      <Route path="/events/:eventId" element={<EventDetail />} />
       <Route path="/faculty/create-society" element={<CreateSociety />} />
       <Route path="/student/create-application" element={<CreateApplication />} />
       <Route path="/student/core/announcements" element={<PostAnnouncement />} />
