@@ -77,22 +77,39 @@ function Dashboard() {
                 </Button>
               </CardContent>
             </Card>
-            {user.role === ROLES.CORE && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Core Actions</CardTitle>
-                  <CardDescription>Manage core-specific responsibilities for your societies</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-slate-300">
-                    Post announcements that will be visible to relevant members of your societies.
-                  </p>
-                  <Button onClick={() => navigate("/student/core/announcements")}>
-                    Post Announcement
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+          </div>
+        );
+      case ROLES.CORE:
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Student Core Dashboard</CardTitle>
+                <CardDescription>Apply to societies and manage your applications</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-slate-300">
+                  Browse available societies, submit applications, and track your recruitment status.
+                </p>
+                <Button onClick={() => navigate("/student/create-application")}>
+                  Apply to Society
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Core Actions</CardTitle>
+                <CardDescription>Manage core-specific responsibilities for your societies</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-slate-300">
+                  Post announcements that will be visible to relevant members of your societies.
+                </p>
+                <Button onClick={() => navigate("/student/core/announcements")}>
+                  Post Announcement
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         );
       default:
