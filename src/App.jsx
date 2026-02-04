@@ -5,6 +5,7 @@ import About from "@/pages/About";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Dashboard from "@/pages/Dashboard";
+import Profile from "@/pages/Profile";
 import PlatformConfig from "@/pages/admin/PlatformConfig";
 import CreateSociety from "@/pages/faculty/CreateSociety";
 import CreateApplication from "@/pages/student/CreateApplication";
@@ -19,6 +20,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/profile" element={<Profile />} />
       <Route path="/admin/platform-config" element={<PlatformConfig />} />
       <Route path="/faculty/create-society" element={<CreateSociety />} />
       <Route path="/student/create-application" element={<CreateApplication />} />

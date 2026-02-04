@@ -43,6 +43,16 @@ const userSchema = new mongoose.Schema(
       ref: "Membership",
       default: null,
     },
+    profile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Profile",
+      default: null,
+    },
+    avatarUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   { timestamps: true },
 );

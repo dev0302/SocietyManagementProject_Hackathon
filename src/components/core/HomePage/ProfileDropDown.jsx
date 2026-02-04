@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ChevronDown, LayoutDashboard, LogOut, User as UserIcon } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 function ProfileDropDown({ onLogout }) {
   const navigate = useNavigate();
@@ -29,10 +29,14 @@ function ProfileDropDown({ onLogout }) {
         aria-label="Open profile menu"
       >
         <Avatar className="h-8 w-8">
-          <AvatarFallback className="text-xs">
-            {user.firstName?.[0]}
-            {user.lastName?.[0]}
-          </AvatarFallback>
+          {user.avatarUrl ? (
+            <AvatarImage src={user.avatarUrl} alt="Avatar" />
+          ) : (
+            <AvatarFallback className="text-xs">
+              {user.firstName?.[0]}
+              {user.lastName?.[0]}
+            </AvatarFallback>
+          )}
         </Avatar>
         <ChevronDown className="h-4 w-4 text-slate-400" />
       </button>
@@ -58,6 +62,16 @@ function ProfileDropDown({ onLogout }) {
           >
             <LayoutDashboard className="h-4 w-4 text-slate-400" />
             Dashboard
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false);
+              navigate("/profile");
+            }}
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-slate-200 hover:bg-slate-900/60"
+          >
+            <UserIcon className="h-4 w-4 text-slate-400" />
+            My Profile
           </button>
           <button
             onClick={() => {

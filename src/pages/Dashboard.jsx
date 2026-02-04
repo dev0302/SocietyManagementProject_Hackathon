@@ -6,7 +6,7 @@ import PrivateRoute from "@/components/core/auth/PrivateRoute";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
 
@@ -136,9 +136,13 @@ function Dashboard() {
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
           <div className="mb-6 flex items-center gap-4">
             <Avatar>
-              <AvatarFallback>
-                {user.firstName?.[0]}{user.lastName?.[0]}
-              </AvatarFallback>
+              {user.avatarUrl ? (
+                <AvatarImage src={user.avatarUrl} alt="Avatar" />
+              ) : (
+                <AvatarFallback>
+                  {user.firstName?.[0]}{user.lastName?.[0]}
+                </AvatarFallback>
+              )}
             </Avatar>
             <div>
               <h1 className="text-xl font-semibold">

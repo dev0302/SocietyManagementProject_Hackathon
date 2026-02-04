@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import fileUpload from "express-fileupload";
 import dotenv from "dotenv";
 import { connectDB } from "./config/database.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -8,6 +9,8 @@ import adminRoutes from "./routes/adminRoutes.js";
 import societyRoutes from "./routes/societyRoutes.js";
 import recruitmentRoutes from "./routes/recruitmentRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import { connectCloudinary } from "./utils/cloudinary.js";
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +25,15 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(
+  fileUpload({
+    useTempFiles: true,
+    tempFileDir: "/tmp",
+  }),
+);
+
+// Third-party services
+connectCloudinary();
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -37,6 +49,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/societies", societyRoutes);
 app.use("/api/recruitment", recruitmentRoutes);
 app.use("/api/otp", otpRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Global error handler (basic)
 app.use((err, req, res, next) => {
