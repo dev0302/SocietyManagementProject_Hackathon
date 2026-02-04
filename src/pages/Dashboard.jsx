@@ -112,6 +112,12 @@ function Dashboard() {
                   <Button onClick={() => navigate("/student/core/events")}>
                     Manage Events
                   </Button>
+                  <Button onClick={() => navigate("/student/core/manage-members")}>
+                    Manage Members
+                  </Button>
+                  <Button onClick={() => navigate("/student/core/departments")}>
+                    View Departments &amp; Heads
+                  </Button>
                 </div>
               </CardContent>
             </Card>
