@@ -5,8 +5,10 @@ import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
+import { toast } from "sonner";
+import { createEvent } from "@/services/operations/eventAPI";
 
-const dummyEvents = [
+const initialEvents = [
   {
     id: 1,
     title: "Orientation Meetup",
@@ -36,28 +38,57 @@ function CoreEvents() {
   const [eventTime, setEventTime] = useState("");
   const [venue, setVenue] = useState("");
   const [description, setDescription] = useState("");
+  const [events, setEvents] = useState(initialEvents);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleCreateEvent = (e) => {
+  const handleCreateEvent = async (e) => {
     e.preventDefault();
 
-    const newEvent = {
-      title: eventTitle,
-      date: eventDate,
-      time: eventTime,
-      venue,
-      description,
-    };
+    if (!eventTitle.trim() || !eventDate || !eventTime || !venue.trim() || !description.trim()) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
 
-    // For now, just log to the console
-    // eslint-disable-next-line no-console
-    console.log("Creating event:", newEvent);
+    try {
+      setSubmitting(true);
 
-    // Reset the form
-    setEventTitle("");
-    setEventDate("");
-    setEventTime("");
-    setVenue("");
-    setDescription("");
+      const payload = {
+        title: eventTitle.trim(),
+        description: description.trim(),
+        // Combine date and time into a single ISO-like string. Backend will cast to Date.
+        date: `${eventDate}T${eventTime}`,
+      };
+
+      const data = await createEvent(payload);
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to create event.");
+      }
+
+      // Update local list with a simple representation
+      setEvents((prev) => [
+        ...prev,
+        {
+          id: data.data?._id || Date.now(),
+          title: eventTitle.trim(),
+          date: eventDate,
+          venue: venue.trim(),
+          status: "Scheduled",
+        },
+      ]);
+
+      toast.success("Event created successfully.");
+
+      setEventTitle("");
+      setEventDate("");
+      setEventTime("");
+      setVenue("");
+      setDescription("");
+    } catch (error) {
+      toast.error(error.message || "Unable to create event. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -158,8 +189,8 @@ function CoreEvents() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit">
-                    Save Event
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Saving..." : "Save Event"}
                   </Button>
                 </div>
               </form>
@@ -183,7 +214,7 @@ function CoreEvents() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dummyEvents.map((event) => (
+                    {events.map((event) => (
                       <tr key={event.id} className="border-b border-slate-900/80 last:border-0">
                         <td className="py-3 pr-4 font-medium text-slate-100">{event.title}</td>
                         <td className="py-3 px-4 text-slate-300">{event.date}</td>

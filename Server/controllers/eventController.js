@@ -4,12 +4,12 @@ import { createAuditLog } from "../utils/auditLogger.js";
 
 export const createEvent = async (req, res) => {
   try {
-    const { title, description, date, societyId, departmentId } = req.body;
+    const { title, description, date } = req.body;
 
-    if (!title || !date || !societyId) {
+    if (!title || !date) {
       return res.status(400).json({
         success: false,
-        message: "title, date, and societyId are required.",
+        message: "title and date are required.",
       });
     }
 
@@ -17,8 +17,6 @@ export const createEvent = async (req, res) => {
       title: title.trim(),
       description: description?.trim() || "",
       date: new Date(date),
-      society: societyId,
-      department: departmentId || null,
       createdBy: req.user.id,
     });
 

@@ -5,6 +5,8 @@ import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
+import { toast } from "sonner";
+import { logMemberDecision, updateMemberRole } from "@/services/operations/coreAPI";
 
 const initialPendingRequests = [
   { id: 1, name: "Aarav Sharma", email: "aarav.sharma@college.edu" },
@@ -22,26 +24,52 @@ function ManageMembers() {
   const [pendingRequests, setPendingRequests] = useState(initialPendingRequests);
   const [members, setMembers] = useState(initialMembers);
 
-  const handleApprove = (request) => {
+  const handleApprove = async (request) => {
     setPendingRequests((prev) => prev.filter((r) => r.id !== request.id));
     setMembers((prev) => [...prev, { ...request, role: "Member" }]);
-    // eslint-disable-next-line no-console
-    console.log("Approved join request:", request);
+
+    try {
+      await logMemberDecision({
+        name: request.name,
+        email: request.email,
+        decision: "APPROVE",
+      });
+    } catch (error) {
+      toast.error(error.message || "Failed to record approval in backend.");
+    }
   };
 
-  const handleReject = (request) => {
+  const handleReject = async (request) => {
     setPendingRequests((prev) => prev.filter((r) => r.id !== request.id));
-    // eslint-disable-next-line no-console
-    console.log("Rejected join request:", request);
+
+    try {
+      await logMemberDecision({
+        name: request.name,
+        email: request.email,
+        decision: "REJECT",
+      });
+    } catch (error) {
+      toast.error(error.message || "Failed to record rejection in backend.");
+    }
   };
 
-  const handleRoleChange = (memberId, newRole) => {
+  const handleRoleChange = async (memberId, newRole) => {
     setMembers((prev) =>
       prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
     );
     const updated = members.find((m) => m.id === memberId);
-    // eslint-disable-next-line no-console
-    console.log("Changed role:", { ...updated, role: newRole });
+
+    if (!updated) return;
+
+    try {
+      await updateMemberRole({
+        name: updated.name,
+        email: updated.email,
+        role: newRole,
+      });
+    } catch (error) {
+      toast.error(error.message || "Failed to update role in backend.");
+    }
   };
 
   return (

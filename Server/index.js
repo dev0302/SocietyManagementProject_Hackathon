@@ -9,6 +9,8 @@ import adminRoutes from "./routes/adminRoutes.js";
 import societyRoutes from "./routes/societyRoutes.js";
 import recruitmentRoutes from "./routes/recruitmentRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
+import eventRoutes from "./routes/eventRoutes.js";
+import coreRoutes from "./routes/coreRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
@@ -54,6 +56,8 @@ app.use("/api/otp", otpRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/core", coreRoutes);
 
 // Global error handler (basic)
 app.use((err, req, res, next) => {
