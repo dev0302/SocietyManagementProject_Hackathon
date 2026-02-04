@@ -20,7 +20,7 @@ router.post("/me", auth, isAdmin, upsertMyCollege);
 
 // Public endpoints for society onboarding via unique code
 router.get("/code/:code", getCollegeByCode);
-router.post("/society-request", auth, createSocietyRequest);
+router.post("/society-request", createSocietyRequest);
 
 // Admin endpoints for society requests + college societies
 router.get("/requests", auth, isAdmin, getMySocietyRequests);

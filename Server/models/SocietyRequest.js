@@ -1,25 +1,43 @@
 import mongoose from "mongoose";
 
-// SocietyRequest represents a request from a society to join a college.
-// This is used when a society wants to associate itself with a college using the college's unique code.
-
-const SOCIETY_REQUEST_STATUS = {
-  PENDING: "PENDING",
-  APPROVED: "APPROVED",
-  REJECTED: "REJECTED",
-};
+// SocietyRequest represents an incoming request from a society
+// to be onboarded under a particular college (via unique code).
 
 const societyRequestSchema = new mongoose.Schema(
   {
-    society: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Society",
+    name: {
+      type: String,
       required: true,
+      trim: true,
+    },
+    category: {
+      type: String,
+      enum: ["TECH", "NON_TECH"],
+      required: true,
+    },
+    logoUrl: {
+      type: String,
+      trim: true,
+    },
+    facultyName: {
+      type: String,
+      trim: true,
+    },
+    presidentName: {
+      type: String,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
     },
     college: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "College",
       required: true,
+      index: true,
     },
     collegeCode: {
       type: String,
@@ -28,34 +46,18 @@ const societyRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(SOCIETY_REQUEST_STATUS),
-      default: SOCIETY_REQUEST_STATUS.PENDING,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING",
+      index: true,
     },
-    requestedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    reviewedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    reviewedAt: {
-      type: Date,
-      default: null,
-    },
-    rejectionReason: {
+    createdVia: {
       type: String,
-      trim: true,
-      default: null,
+      enum: ["LINK"],
+      default: "LINK",
     },
   },
   { timestamps: true },
 );
 
-societyRequestSchema.index({ college: 1, status: 1 });
-societyRequestSchema.index({ society: 1 });
-
-export { SOCIETY_REQUEST_STATUS };
 export default mongoose.model("SocietyRequest", societyRequestSchema);
+

@@ -1,69 +1,87 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { getCollegeByCode, createSocietyRequest } from "@/services/operations/collegeAPI";
+import Navbar from "@/components/common/Navbar";
+import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Input from "@/components/ui/input";
 import Button from "@/components/ui/button";
-import { SpinnerCustom } from "@/components/ui/spinner";
-import Navbar from "@/components/common/Navbar";
-import Footer from "@/components/common/Footer";
+import { getCollegeByCode, createSocietyRequest } from "@/services/operations/collegeAPI";
+
+function useQuery() {
+  const { search } = useLocation();
+  return new URLSearchParams(search);
+}
 
 function SocietyOnboard() {
-  const navigate = useNavigate();
-  const [collegeCode, setCollegeCode] = useState("");
-  const [loading, setLoading] = useState(false);
+  const query = useQuery();
   const [college, setCollege] = useState(null);
+  const [loadingCollege, setLoadingCollege] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "TECH",
+    logoUrl: "",
+    facultyName: "",
+    presidentName: "",
+    email: "",
+    collegeCode: "",
+  });
 
-  const handleLookup = async () => {
-    if (!collegeCode.trim()) {
-      toast.error("Please enter a college code");
-      return;
+  useEffect(() => {
+    const codeFromUrl = query.get("code") || "";
+    if (codeFromUrl) {
+      setFormData((prev) => ({ ...prev, collegeCode: codeFromUrl.toUpperCase() }));
+      loadCollege(codeFromUrl);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    setLoading(true);
+  const loadCollege = async (code) => {
+    setLoadingCollege(true);
     try {
-      const response = await getCollegeByCode(collegeCode.trim());
-      if (response.success && response.data) {
+      const response = await getCollegeByCode(code);
+      if (response.success) {
         setCollege(response.data);
-        toast.success("College found!");
       } else {
-        toast.error("College not found with this code");
-        setCollege(null);
+        toast.error(response.message || "Invalid college code");
       }
     } catch (error) {
-      const errorMessage =
-        error?.response?.data?.message || error?.message || "Failed to find college";
-      toast.error(errorMessage);
-      setCollege(null);
+      const message = error?.message || "Failed to load college";
+      toast.error(message);
     } finally {
-      setLoading(false);
+      setLoadingCollege(false);
     }
   };
 
-  const handleRequest = async () => {
-    if (!college) {
-      toast.error("Please find a college first");
+  const handleChange = (field) => (e) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.collegeCode) {
+      toast.error("Society name, email and college code are required");
       return;
     }
-
     setSubmitting(true);
     try {
-      const response = await createSocietyRequest({
-        collegeId: college._id,
-        collegeCode: collegeCode.trim(),
-      });
-      if (response.success) {
-        toast.success("Society request submitted successfully!");
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1500);
+      const response = await createSocietyRequest(formData);
+      if (!response.success) {
+        throw new Error(response.message || "Failed to submit request");
       }
+      toast.success("Request submitted to college admin. You will be contacted after review.");
+      setFormData((prev) => ({
+        ...prev,
+        name: "",
+        logoUrl: "",
+        facultyName: "",
+        presidentName: "",
+        email: "",
+      }));
     } catch (error) {
-      const errorMessage =
-        error?.response?.data?.message || error?.message || "Failed to submit request";
-      toast.error(errorMessage);
+      const message = error?.message || "Failed to submit request";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -72,53 +90,108 @@ function SocietyOnboard() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-50">
       <Navbar />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
         <Card>
           <CardHeader>
-            <CardTitle>Onboard Society to College</CardTitle>
+            <CardTitle>Society onboarding</CardTitle>
             <CardDescription>
-              Enter your college&apos;s unique code to request onboarding for your society.
+              Fill in your society details and use the college&apos;s unique code to send a request
+              to the admin.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">College Code</label>
-              <div className="flex gap-2">
+          <CardContent>
+            {loadingCollege ? (
+              <p className="mb-4 text-xs text-slate-500">Validating college code…</p>
+            ) : college ? (
+              <div className="mb-4 rounded-md border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
+                <p className="font-medium text-slate-100">{college.name}</p>
+                <p className="mt-1 font-mono text-[11px] text-sky-300">
+                  College code: {college.uniqueCode}
+                </p>
+              </div>
+            ) : formData.collegeCode ? (
+              <p className="mb-4 text-xs text-slate-500">
+                Entered code: {formData.collegeCode}. If this is incorrect, please check with your
+                admin.
+              </p>
+            ) : null}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">Society name</label>
                 <Input
-                  placeholder="Enter college code"
-                  value={collegeCode}
-                  onChange={(e) => {
-                    setCollegeCode(e.target.value);
-                    setCollege(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleLookup();
-                    }
-                  }}
+                  value={formData.name}
+                  onChange={handleChange("name")}
+                  placeholder="e.g. Robotics Club"
+                  required
                 />
-                <Button onClick={handleLookup} disabled={loading}>
-                  {loading ? <SpinnerCustom /> : "Lookup"}
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">Category</label>
+                <select
+                  value={formData.category}
+                  onChange={handleChange("category")}
+                  className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500"
+                >
+                  <option value="TECH">Tech</option>
+                  <option value="NON_TECH">Non-tech</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">
+                  Profile photo / logo URL (optional)
+                </label>
+                <Input
+                  value={formData.logoUrl}
+                  onChange={handleChange("logoUrl")}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">
+                  Faculty name (optional)
+                </label>
+                <Input
+                  value={formData.facultyName}
+                  onChange={handleChange("facultyName")}
+                  placeholder="Faculty coordinator name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">
+                  President name (optional)
+                </label>
+                <Input
+                  value={formData.presidentName}
+                  onChange={handleChange("presidentName")}
+                  placeholder="Student president name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">Society contact email</label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange("email")}
+                  placeholder="official-society@college.edu"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-300">College unique code</label>
+                <Input
+                  value={formData.collegeCode}
+                  onChange={handleChange("collegeCode")}
+                  placeholder="e.g. ABC123"
+                  className="font-mono"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Submitting..." : "Send request to admin"}
                 </Button>
               </div>
-            </div>
-
-            {college && (
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-                <h3 className="text-sm font-semibold text-slate-100">{college.name}</h3>
-                {college.email && (
-                  <p className="mt-1 text-xs text-slate-400">{college.email}</p>
-                )}
-                {college.address && (
-                  <p className="mt-1 text-xs text-slate-400">{college.address}</p>
-                )}
-                <div className="mt-3">
-                  <Button onClick={handleRequest} disabled={submitting} className="w-full">
-                    {submitting ? <SpinnerCustom /> : "Request Onboarding"}
-                  </Button>
-                </div>
-              </div>
-            )}
+            </form>
           </CardContent>
         </Card>
       </main>
@@ -128,3 +201,4 @@ function SocietyOnboard() {
 }
 
 export default SocietyOnboard;
+

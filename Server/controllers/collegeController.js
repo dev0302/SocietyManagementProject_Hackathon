@@ -1,48 +1,132 @@
 import College from "../models/College.js";
-import SocietyRequest, { SOCIETY_REQUEST_STATUS } from "../models/SocietyRequest.js";
+import OTP from "../models/OTP.js";
 import Society from "../models/Society.js";
+import SocietyRequest from "../models/SocietyRequest.js";
 import { createAuditLog } from "../utils/auditLogger.js";
 
-// Generate a unique college code (3 letters + 3 digits)
-const generateUniqueCode = () => {
+// Helper to generate a unique college code: 3 letters + 3 digits, e.g., ABC123
+const generateCollegeCode = () => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const digits = "0123456789";
   let code = "";
   for (let i = 0; i < 3; i++) {
-    code += letters[Math.floor(Math.random() * letters.length)];
+    code += letters.charAt(Math.floor(Math.random() * letters.length));
   }
-  for (let i = 0; i < 3; i++) {
-    code += digits[Math.floor(Math.random() * digits.length)];
-  }
-  return code;
+  const digits = Math.floor(100 + Math.random() * 900); // 3 digits
+  return `${code}${digits}`;
 };
 
-// Admin: Get or create their college profile
-export const getMyCollege = async (req, res) => {
+const generateUniqueCollegeCode = async () => {
+  // Try a few times to avoid collision
+  for (let i = 0; i < 10; i++) {
+    const candidate = generateCollegeCode();
+    // eslint-disable-next-line no-await-in-loop
+    const existing = await College.findOne({ uniqueCode: candidate });
+    if (!existing) return candidate;
+  }
+  throw new Error("Failed to generate unique college code");
+};
+
+// Admin creates or updates their college profile.
+// Requires a previously verified OTP for the college email.
+export const upsertMyCollege = async (req, res) => {
   try {
-    let college = await College.findOne({ admin: req.user.id });
+    const adminId = req.user.id;
+    const { name, email, address, profileImageUrl, phoneNumber, otp } = req.body;
+
+    if (!name || !email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and OTP are required.",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Verify OTP
+    const recentOTP = await OTP.find({ email: normalizedEmail })
+      .sort({ createdAt: -1 })
+      .limit(1);
+
+    if (!recentOTP.length || recentOTP[0].otp !== otp.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP.",
+      });
+    }
+
+    if (recentOTP[0].expiresAt < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired. Please request a new one.",
+      });
+    }
+
+    // Consume OTP
+    await OTP.deleteOne({ _id: recentOTP[0]._id });
+
+    let college = await College.findOne({ admin: adminId });
 
     if (!college) {
-      // Create a new college with a unique code
-      let uniqueCode;
-      let exists = true;
-      while (exists) {
-        uniqueCode = generateUniqueCode();
-        exists = await College.findOne({ uniqueCode });
-      }
-
+      const uniqueCode = await generateUniqueCollegeCode();
       college = await College.create({
-        name: "",
-        email: req.user.email,
-        admin: req.user.id,
+        name,
+        email: normalizedEmail,
+        address: address?.trim() || "",
+        profileImageUrl: profileImageUrl?.trim() || "",
+        phoneNumber: phoneNumber?.trim() || "",
         uniqueCode,
-        isVerified: false,
+        admin: adminId,
+        isVerified: true,
+      });
+      await createAuditLog({
+        actorId: adminId,
+        actorRole: req.user.role,
+        action: "COLLEGE_CREATED",
+        targetModel: "College",
+        targetId: String(college._id),
+        metadata: { uniqueCode },
+      });
+    } else {
+      college.name = name;
+      college.email = normalizedEmail;
+      college.address = address?.trim() || "";
+      college.profileImageUrl = profileImageUrl?.trim() || "";
+      college.phoneNumber = phoneNumber?.trim() || "";
+      college.isVerified = true;
+      await college.save();
+
+      await createAuditLog({
+        actorId: adminId,
+        actorRole: req.user.role,
+        action: "COLLEGE_UPDATED",
+        targetModel: "College",
+        targetId: String(college._id),
+        metadata: { uniqueCode: college.uniqueCode },
       });
     }
 
     return res.status(200).json({
       success: true,
+      message: "College profile saved.",
       data: college,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save college profile.",
+    });
+  }
+};
+
+// Get the college associated with the current admin.
+export const getMyCollege = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const college = await College.findOne({ admin: adminId });
+
+    return res.status(200).json({
+      success: true,
+      data: college || null,
     });
   } catch (error) {
     return res.status(500).json({
@@ -52,110 +136,31 @@ export const getMyCollege = async (req, res) => {
   }
 };
 
-// Admin: Create or update their college profile
-export const upsertMyCollege = async (req, res) => {
-  try {
-    const { name, email, address, phoneNumber, profileImageUrl } = req.body;
-
-    if (!name || !email) {
-      return res.status(400).json({
-        success: false,
-        message: "Name and email are required.",
-      });
-    }
-
-    let college = await College.findOne({ admin: req.user.id });
-    let wasNew = false;
-
-    if (college) {
-      // Update existing college
-      college.name = name.trim();
-      college.email = email.toLowerCase().trim();
-      if (address !== undefined) college.address = address?.trim() || "";
-      if (phoneNumber !== undefined) college.phoneNumber = phoneNumber?.trim() || "";
-      if (profileImageUrl !== undefined) college.profileImageUrl = profileImageUrl?.trim() || "";
-      await college.save();
-    } else {
-      // Create new college with unique code
-      wasNew = true;
-      let uniqueCode;
-      let exists = true;
-      while (exists) {
-        uniqueCode = generateUniqueCode();
-        exists = await College.findOne({ uniqueCode });
-      }
-
-      college = await College.create({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        address: address?.trim() || "",
-        phoneNumber: phoneNumber?.trim() || "",
-        profileImageUrl: profileImageUrl?.trim() || "",
-        admin: req.user.id,
-        uniqueCode,
-        isVerified: false,
-      });
-    }
-
-    await createAuditLog({
-      actorId: req.user.id,
-      actorRole: req.user.role,
-      action: wasNew ? "COLLEGE_CREATED" : "COLLEGE_UPDATED",
-      targetModel: "College",
-      targetId: String(college._id),
-      metadata: { name: college.name, uniqueCode: college.uniqueCode },
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: wasNew ? "College profile created." : "College profile updated.",
-      data: college,
-    });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: "A college with this email already exists.",
-      });
-    }
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save college profile.",
-    });
-  }
-};
-
-// Public: Get college by unique code (for society onboarding)
+// Public: fetch basic college information by unique code (for society onboarding page).
 export const getCollegeByCode = async (req, res) => {
   try {
     const { code } = req.params;
-
-    if (!code || code.length !== 6) {
+    if (!code) {
       return res.status(400).json({
         success: false,
-        message: "Invalid college code format.",
+        message: "College code is required.",
       });
     }
 
-    const college = await College.findOne({ uniqueCode: code.toUpperCase() });
+    const college = await College.findOne({ uniqueCode: code.toUpperCase() }).select(
+      "name uniqueCode",
+    );
 
     if (!college) {
       return res.status(404).json({
         success: false,
-        message: "College not found with this code.",
+        message: "College not found for this code.",
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: {
-        _id: college._id,
-        name: college.name,
-        email: college.email,
-        address: college.address,
-        uniqueCode: college.uniqueCode,
-        isVerified: college.isVerified,
-      },
+      data: college,
     });
   } catch (error) {
     return res.status(500).json({
@@ -165,130 +170,68 @@ export const getCollegeByCode = async (req, res) => {
   }
 };
 
-// Create a society request to join a college (requires auth - faculty member)
+// Public: society submits a request to join a college using the unique code.
 export const createSocietyRequest = async (req, res) => {
   try {
-    const { collegeId, collegeCode, societyId } = req.body;
+    const { name, category, logoUrl, facultyName, presidentName, email, collegeCode } = req.body;
 
-    if (!collegeId && !collegeCode) {
+    if (!name || !email || !collegeCode || !category) {
       return res.status(400).json({
         success: false,
-        message: "collegeId or collegeCode is required.",
+        message: "Name, category, email and college code are required.",
       });
     }
 
-    // Find college
-    let college;
-    if (collegeId) {
-      college = await College.findById(collegeId);
-    } else {
-      college = await College.findOne({ uniqueCode: collegeCode.toUpperCase() });
-    }
-
+    const normalizedCode = collegeCode.toUpperCase().trim();
+    const college = await College.findOne({ uniqueCode: normalizedCode });
     if (!college) {
       return res.status(404).json({
         success: false,
-        message: "College not found.",
+        message: "Invalid college code.",
       });
     }
 
-    // Find the society - either from body or from user's faculty coordinator role
-    let society;
-    if (societyId) {
-      society = await Society.findById(societyId);
-      if (!society) {
-        return res.status(404).json({
-          success: false,
-          message: "Society not found.",
-        });
-      }
-      // Verify the user is the faculty coordinator of this society
-      if (String(society.facultyCoordinator) !== String(req.user.id)) {
-        return res.status(403).json({
-          success: false,
-          message: "You don't have permission to request onboarding for this society.",
-        });
-      }
-    } else {
-      // Find a society where the user is the faculty coordinator
-      society = await Society.findOne({ facultyCoordinator: req.user.id });
-      if (!society) {
-        return res.status(404).json({
-          success: false,
-          message: "No society found. Please create a society first.",
-        });
-      }
-    }
-
-    // Check if society is already associated with a college
-    if (society.college) {
-      return res.status(409).json({
-        success: false,
-        message: "This society is already associated with a college.",
-      });
-    }
-
-    // Check if there's already a pending request
-    const existingRequest = await SocietyRequest.findOne({
-      society: society._id,
-      college: college._id,
-      status: SOCIETY_REQUEST_STATUS.PENDING,
-    });
-
-    if (existingRequest) {
-      return res.status(409).json({
-        success: false,
-        message: "A pending request already exists for this society and college.",
-      });
-    }
-
-    // Create the request
     const request = await SocietyRequest.create({
-      society: society._id,
+      name: name.trim(),
+      category: category === "NON_TECH" ? "NON_TECH" : "TECH",
+      logoUrl: logoUrl?.trim() || "",
+      facultyName: facultyName?.trim() || "",
+      presidentName: presidentName?.trim() || "",
+      email: email.toLowerCase().trim(),
       college: college._id,
-      collegeCode: college.uniqueCode,
-      requestedBy: req.user.id,
-      status: SOCIETY_REQUEST_STATUS.PENDING,
-    });
-
-    await createAuditLog({
-      actorId: req.user.id,
-      actorRole: req.user.role,
-      action: "SOCIETY_REQUEST_CREATED",
-      targetModel: "SocietyRequest",
-      targetId: String(request._id),
-      metadata: { societyId: String(society._id), collegeId: String(college._id) },
+      collegeCode: normalizedCode,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Society request created successfully.",
+      message: "Society request submitted. An admin will review it shortly.",
       data: request,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to create society request.",
+      message: "Failed to submit society request.",
     });
   }
 };
 
-// Admin: Get all society requests for their college
+// Admin: list pending society requests for their college.
 export const getMySocietyRequests = async (req, res) => {
   try {
-    const college = await College.findOne({ admin: req.user.id });
+    const adminId = req.user.id;
+    const college = await College.findOne({ admin: adminId });
 
     if (!college) {
-      return res.status(404).json({
-        success: false,
-        message: "College profile not found. Please set up your college first.",
+      return res.status(200).json({
+        success: true,
+        data: [],
       });
     }
 
-    const requests = await SocietyRequest.find({ college: college._id })
-      .populate("society", "name description")
-      .populate("requestedBy", "firstName lastName email")
-      .sort({ createdAt: -1 });
+    const requests = await SocietyRequest.find({
+      college: college._id,
+      status: "PENDING",
+    }).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -302,21 +245,23 @@ export const getMySocietyRequests = async (req, res) => {
   }
 };
 
-// Admin: Get all societies associated with their college
+// Admin: list societies under their college.
 export const getMyCollegeSocieties = async (req, res) => {
   try {
-    const college = await College.findOne({ admin: req.user.id });
+    const adminId = req.user.id;
+    const college = await College.findOne({ admin: adminId });
 
     if (!college) {
-      return res.status(404).json({
-        success: false,
-        message: "College profile not found. Please set up your college first.",
+      return res.status(200).json({
+        success: true,
+        data: [],
       });
     }
 
-    const societies = await Society.find({ college: college._id })
-      .populate("facultyCoordinator", "firstName lastName email")
-      .sort({ createdAt: -1 });
+    const societies = await Society.find({
+      college: college._id,
+      isActive: true,
+    }).sort({ name: 1 });
 
     return res.status(200).json({
       success: true,
@@ -330,59 +275,68 @@ export const getMyCollegeSocieties = async (req, res) => {
   }
 };
 
-// Admin: Approve a society request
+// Admin: approve a society request → creates a Society and marks request as approved.
 export const approveSocietyRequest = async (req, res) => {
   try {
+    const adminId = req.user.id;
     const { requestId } = req.params;
 
-    const request = await SocietyRequest.findById(requestId).populate("college");
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: "Society request not found.",
-      });
-    }
-
-    // Verify the admin owns this college
-    if (String(request.college.admin) !== String(req.user.id)) {
-      return res.status(403).json({
-        success: false,
-        message: "You don't have permission to approve this request.",
-      });
-    }
-
-    if (request.status !== SOCIETY_REQUEST_STATUS.PENDING) {
+    const college = await College.findOne({ admin: adminId });
+    if (!college) {
       return res.status(400).json({
         success: false,
-        message: "This request has already been processed.",
+        message: "Admin does not have an associated college.",
       });
     }
 
-    // Update the society to associate it with the college
-    await Society.findByIdAndUpdate(request.society, {
-      college: request.college._id,
+    const request = await SocietyRequest.findOne({
+      _id: requestId,
+      college: college._id,
     });
 
-    // Update the request status
-    request.status = SOCIETY_REQUEST_STATUS.APPROVED;
-    request.reviewedBy = req.user.id;
-    request.reviewedAt = new Date();
+    if (!request || request.status !== "PENDING") {
+      return res.status(404).json({
+        success: false,
+        message: "Pending request not found.",
+      });
+    }
+
+    const existing = await Society.findOne({ name: request.name.trim() });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "A society with this name already exists.",
+      });
+    }
+
+    const society = await Society.create({
+      name: request.name.trim(),
+      description: "",
+      facultyCoordinator: adminId,
+      college: college._id,
+      category: request.category,
+      logoUrl: request.logoUrl,
+      facultyName: request.facultyName,
+      presidentName: request.presidentName,
+      contactEmail: request.email,
+    });
+
+    request.status = "APPROVED";
     await request.save();
 
     await createAuditLog({
-      actorId: req.user.id,
+      actorId: adminId,
       actorRole: req.user.role,
       action: "SOCIETY_REQUEST_APPROVED",
-      targetModel: "SocietyRequest",
-      targetId: String(request._id),
-      metadata: { societyId: String(request.society), collegeId: String(request.college._id) },
+      targetModel: "Society",
+      targetId: String(society._id),
+      metadata: { requestId: request._id },
     });
 
     return res.status(200).json({
       success: true,
       message: "Society request approved.",
-      data: request,
+      data: society,
     });
   } catch (error) {
     return res.status(500).json({
@@ -392,58 +346,47 @@ export const approveSocietyRequest = async (req, res) => {
   }
 };
 
-// Admin: Reject a society request
+// Admin: reject a society request.
 export const rejectSocietyRequest = async (req, res) => {
   try {
+    const adminId = req.user.id;
     const { requestId } = req.params;
-    const { rejectionReason } = req.body;
 
-    const request = await SocietyRequest.findById(requestId).populate("college");
-
-    if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: "Society request not found.",
-      });
-    }
-
-    // Verify the admin owns this college
-    if (String(request.college.admin) !== String(req.user.id)) {
-      return res.status(403).json({
-        success: false,
-        message: "You don't have permission to reject this request.",
-      });
-    }
-
-    if (request.status !== SOCIETY_REQUEST_STATUS.PENDING) {
+    const college = await College.findOne({ admin: adminId });
+    if (!college) {
       return res.status(400).json({
         success: false,
-        message: "This request has already been processed.",
+        message: "Admin does not have an associated college.",
       });
     }
 
-    // Update the request status
-    request.status = SOCIETY_REQUEST_STATUS.REJECTED;
-    request.reviewedBy = req.user.id;
-    request.reviewedAt = new Date();
-    if (rejectionReason) {
-      request.rejectionReason = rejectionReason.trim();
+    const request = await SocietyRequest.findOne({
+      _id: requestId,
+      college: college._id,
+    });
+
+    if (!request || request.status !== "PENDING") {
+      return res.status(404).json({
+        success: false,
+        message: "Pending request not found.",
+      });
     }
+
+    request.status = "REJECTED";
     await request.save();
 
     await createAuditLog({
-      actorId: req.user.id,
+      actorId: adminId,
       actorRole: req.user.role,
       action: "SOCIETY_REQUEST_REJECTED",
       targetModel: "SocietyRequest",
       targetId: String(request._id),
-      metadata: { societyId: String(request.society), collegeId: String(request.college._id) },
+      metadata: {},
     });
 
     return res.status(200).json({
       success: true,
       message: "Society request rejected.",
-      data: request,
     });
   } catch (error) {
     return res.status(500).json({
@@ -452,3 +395,4 @@ export const rejectSocietyRequest = async (req, res) => {
     });
   }
 };
+
