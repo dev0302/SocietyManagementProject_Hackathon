@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import societyRoutes from "./routes/societyRoutes.js";
 import recruitmentRoutes from "./routes/recruitmentRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import { connectCloudinary } from "./utils/cloudinary.js";
@@ -50,6 +51,7 @@ app.use("/api/societies", societyRoutes);
 app.use("/api/recruitment", recruitmentRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/announcements", announcementRoutes);
 
 // Global error handler (basic)
 app.use((err, req, res, next) => {
