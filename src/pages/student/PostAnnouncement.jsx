@@ -5,29 +5,46 @@ import Footer from "@/components/common/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Input from "@/components/ui/input";
 import Button from "@/components/ui/button";
+import { toast } from "sonner";
+import { createAnnouncement } from "@/services/operations/announcementAPI";
 
 function PostAnnouncement() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState("ALL");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const announcement = {
-      title,
-      message,
-      audience,
-    };
+    if (!title.trim() || !message.trim()) {
+      toast.error("Title and message are required.");
+      return;
+    }
 
-    // For now, just log to console as requested
-    // eslint-disable-next-line no-console
-    console.log("Posting announcement:", announcement);
+    try {
+      setSubmitting(true);
 
-    // Optional: reset form after submit
-    setTitle("");
-    setMessage("");
-    setAudience("ALL");
+      const data = await createAnnouncement({
+        title: title.trim(),
+        message: message.trim(),
+        audience,
+      });
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to post announcement.");
+      }
+
+      toast.success("Announcement posted successfully.");
+
+      setTitle("");
+      setMessage("");
+      setAudience("ALL");
+    } catch (error) {
+      toast.error(error.message || "Unable to post announcement. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -87,8 +104,8 @@ function PostAnnouncement() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit">
-                    Post
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Posting..." : "Post"}
                   </Button>
                 </div>
               </form>
