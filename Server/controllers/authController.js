@@ -59,7 +59,7 @@ export const registerAdmin = async (req, res) => {
 
     const config = await PlatformConfig.findOne();
     const allowedAdmins = config?.adminEmails || [];
-    const isAllowed = allowedAdmins.includes(email.toLowerCase());
+    const isAllowed = allowedAdmins.includes(email.trim().toLowerCase());
 
     if (!isAllowed) {
       return res.status(403).json({
@@ -160,8 +160,9 @@ export const registerFaculty = async (req, res) => {
     }
 
     const config = await PlatformConfig.findOne();
-    const allowedFaculty = config?.facultyWhitelist || [];
-    const isAllowed = allowedFaculty.includes(email.toLowerCase());
+    const allowedFaculty = (config?.facultyWhitelist || []).map((e) => String(e).trim().toLowerCase());
+    const normalizedEmail = email.trim().toLowerCase();
+    const isAllowed = allowedFaculty.includes(normalizedEmail);
 
     if (!isAllowed) {
       return res.status(403).json({
@@ -342,7 +343,8 @@ export const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(401).json({
         success: false,

@@ -31,18 +31,18 @@ export const sendOTP = async (req, res) => {
 
     if (normalizedType === "admin" || normalizedType === "faculty") {
       const config = await PlatformConfig.findOne();
-      const allowedAdmins = config?.adminEmails || [];
-      const allowedFaculty = config?.facultyWhitelist || [];
-      const lowerEmail = email.toLowerCase();
+      const allowedAdmins = (config?.adminEmails || []).map((e) => String(e).trim().toLowerCase());
+      const allowedFaculty = (config?.facultyWhitelist || []).map((e) => String(e).trim().toLowerCase());
+      const normalizedEmail = email.trim().toLowerCase();
 
-      if (normalizedType === "admin" && !allowedAdmins.includes(lowerEmail)) {
+      if (normalizedType === "admin" && !allowedAdmins.includes(normalizedEmail)) {
         return res.status(403).json({
           success: false,
           message: "Email is not approved for admin access.",
         });
       }
 
-      if (normalizedType === "faculty" && !allowedFaculty.includes(lowerEmail)) {
+      if (normalizedType === "faculty" && !allowedFaculty.includes(normalizedEmail)) {
         return res.status(403).json({
           success: false,
           message: "Email is not approved for faculty sign up.",

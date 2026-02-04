@@ -29,10 +29,10 @@ export const updatePlatformConfig = async (req, res) => {
     const { adminEmails, facultyWhitelist } = req.body;
 
     const normalizedAdminEmails = Array.isArray(adminEmails)
-      ? adminEmails.map((e) => e.toLowerCase())
+      ? adminEmails.map((e) => String(e).trim().toLowerCase()).filter((e) => e)
       : undefined;
     const normalizedFacultyEmails = Array.isArray(facultyWhitelist)
-      ? facultyWhitelist.map((e) => e.toLowerCase())
+      ? facultyWhitelist.map((e) => String(e).trim().toLowerCase()).filter((e) => e)
       : undefined;
 
     const config =
