@@ -1,12 +1,13 @@
 import otpGenerator from "otp-generator";
 import OTP from "../models/OTP.js";
 import User from "../models/User.js";
+import PlatformConfig from "../models/PlatformConfig.js";
 import mailSender from "../utils/mailSender.js";
 import { emailVerificationTemplate } from "../mail/templates/emailVerificationTemplate.js";
 
 export const sendOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, accountType } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -22,6 +23,31 @@ export const sendOTP = async (req, res) => {
         success: false,
         message: "User already exists. Please log in instead.",
       });
+    }
+
+    // Eligibility guard for admin/faculty signups (must be pre-approved)
+    const normalizedType =
+      typeof accountType === "string" ? accountType.trim().toLowerCase() : "student";
+
+    if (normalizedType === "admin" || normalizedType === "faculty") {
+      const config = await PlatformConfig.findOne();
+      const allowedAdmins = config?.adminEmails || [];
+      const allowedFaculty = config?.facultyWhitelist || [];
+      const lowerEmail = email.toLowerCase();
+
+      if (normalizedType === "admin" && !allowedAdmins.includes(lowerEmail)) {
+        return res.status(403).json({
+          success: false,
+          message: "Email is not approved for admin access.",
+        });
+      }
+
+      if (normalizedType === "faculty" && !allowedFaculty.includes(lowerEmail)) {
+        return res.status(403).json({
+          success: false,
+          message: "Email is not approved for faculty sign up.",
+        });
+      }
     }
 
     // Generate OTP

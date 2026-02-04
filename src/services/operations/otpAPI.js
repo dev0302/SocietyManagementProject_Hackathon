@@ -1,8 +1,8 @@
 import apiConnector from "../api.js";
 
-export const sendOTP = async (email) => {
+export const sendOTP = async (email, accountType = "student") => {
   try {
-    const response = await apiConnector.post("/api/otp/send", { email });
+    const response = await apiConnector.post("/api/otp/send", { email, accountType });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
