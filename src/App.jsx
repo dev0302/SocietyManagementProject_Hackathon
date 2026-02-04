@@ -8,6 +8,8 @@ import Dashboard from "@/pages/Dashboard";
 import PlatformConfig from "@/pages/admin/PlatformConfig";
 import CreateSociety from "@/pages/faculty/CreateSociety";
 import CreateApplication from "@/pages/student/CreateApplication";
+import PostAnnouncement from "@/pages/student/PostAnnouncement";
+import CoreEvents from "@/pages/student/CoreEvents";
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
       <Route path="/admin/platform-config" element={<PlatformConfig />} />
       <Route path="/faculty/create-society" element={<CreateSociety />} />
       <Route path="/student/create-application" element={<CreateApplication />} />
+      <Route path="/student/core/announcements" element={<PostAnnouncement />} />
+      <Route path="/student/core/events" element={<CoreEvents />} />
     </Routes>
   );
 }

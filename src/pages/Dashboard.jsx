@@ -103,11 +103,16 @@ function Dashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-slate-300">
-                  Post announcements that will be visible to relevant members of your societies.
+                  Quick tools available only to core members of your societies.
                 </p>
-                <Button onClick={() => navigate("/student/core/announcements")}>
-                  Post Announcement
-                </Button>
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={() => navigate("/student/core/announcements")}>
+                    Post Announcement
+                  </Button>
+                  <Button onClick={() => navigate("/student/core/events")}>
+                    Manage Events
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
