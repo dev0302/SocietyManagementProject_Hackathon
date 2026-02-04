@@ -110,6 +110,7 @@ export const registerAdmin = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl || "",
       },
     });
   } catch (error) {
@@ -211,6 +212,7 @@ export const registerFaculty = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl || "",
       },
     });
   } catch (error) {
@@ -317,6 +319,7 @@ export const registerStudent = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl || "",
       },
     });
   } catch (error) {
@@ -396,6 +399,7 @@ export const login = async (req, res) => {
           lastName: user.lastName,
           email: user.email,
           role: user.role,
+          avatarUrl: user.avatarUrl || "",
         },
       });
   } catch (error) {

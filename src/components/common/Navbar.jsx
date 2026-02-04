@@ -14,6 +14,8 @@ import { NavbarLinks } from "@/data/navbar-links";
 import { logout } from "@/redux/slices/authSlice";
 import Button from "@/components/ui/button";
 import ProfileDropDown from "@/components/core/HomePage/ProfileDropDown";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { searchUsers } from "@/services/operations/searchAPI";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -21,7 +23,46 @@ function Navbar() {
   const { token, user } = useSelector((state) => state.auth);
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [open, setOpen] = useState(false); // mobile drawer
+
+  useEffect(() => {
+    let active = true;
+
+    const runSearch = async () => {
+      const q = searchQuery.trim();
+      if (!q) {
+        if (active) setSearchResults([]);
+        if (active) setHasSearched(false);
+        return;
+      }
+      setSearchLoading(true);
+       if (active) setHasSearched(false);
+      try {
+        const response = await searchUsers(q);
+        if (!active) return;
+        if (response.success) {
+          setSearchResults(response.results || []);
+        } else {
+          setSearchResults([]);
+        }
+        setHasSearched(true);
+      } catch {
+        if (active) setSearchResults([]);
+      } finally {
+        if (active) setSearchLoading(false);
+      }
+    };
+
+    const id = setTimeout(runSearch, 300);
+    return () => {
+      active = false;
+      clearTimeout(id);
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,8 +104,10 @@ function Navbar() {
         <nav className="hidden items-center rounded-full border border-slate-800/70 bg-slate-900/40 px-2 py-1.5 shadow-2xl lg:flex">
           {/* Search */}
           <div
-            className={`relative mr-2 flex items-center gap-2 rounded-full px-4 py-2 transition-all duration-300 ${
-              isSearchFocused ? "bg-white/[0.03]" : "bg-transparent"
+            className={`relative mr-2 flex items-center gap-2 rounded-full border px-4 py-2 text-xs transition-all duration-300 ${
+              isSearchFocused
+                ? "border-sky-500/60 bg-slate-900/80 shadow-[0_0_0_1px_rgba(56,189,248,0.4)]"
+                : "border-slate-800/80 bg-slate-900/40"
             }`}
           >
             <Search
@@ -74,15 +117,69 @@ function Navbar() {
             />
             <input
               type="text"
-              placeholder={
-                isSearchFocused
-                  ? "Search (under construction)..."
-                  : "Search..."
-              }
+              placeholder="Search people"
+              value={searchQuery}
               onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              className="w-14 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:outline-none xl:w-44"
+              onBlur={() => {
+                setIsSearchFocused(false);
+                setSearchResults([]);
+              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-28 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:outline-none xl:w-44"
             />
+            {isSearchFocused && searchQuery.trim() && (
+              <div className="absolute left-0 top-full z-[1200] mt-2 w-80 rounded-2xl border border-slate-800/80 bg-slate-950/95 p-2 shadow-2xl shadow-sky-900/40 backdrop-blur transition-all duration-200 ease-out">
+                <div className="flex items-center justify-between px-2 pb-1">
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                    People
+                  </span>
+                  <span className="text-[9px] text-slate-500">
+                    Type to search by name or email
+                  </span>
+                </div>
+                {searchLoading ? (
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
+                    <span className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                    <span>Searching&hellip;</span>
+                  </div>
+                ) : hasSearched && searchResults.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-slate-500">
+                    No matching users.
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <ul className="max-h-72 space-y-1 overflow-y-auto">
+                    {searchResults.map((result) => (
+                      <li
+                        key={result.id || result._id || result.email}
+                        className="group flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-xs text-slate-100 transition-all duration-150 ease-out hover:bg-slate-900/90 hover:shadow-[0_0_0_1px_rgba(56,189,248,0.4)] hover:-translate-y-[1px]"
+                      >
+                        <Avatar className="h-8 w-8 border border-slate-800/80 bg-slate-900">
+                          {result.avatarUrl ? (
+                            <AvatarImage src={result.avatarUrl} alt={result.firstName} />
+                          ) : (
+                            <AvatarFallback className="text-[10px]">
+                              {result.firstName?.[0]}
+                              {result.lastName?.[0]}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-medium group-hover:text-sky-300">
+                            {result.firstName} {result.lastName}
+                          </div>
+                          <div className="truncate text-[10px] text-slate-400">
+                            {result.email}
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] uppercase tracking-wide text-slate-300 group-hover:bg-sky-500/20 group-hover:text-sky-300">
+                          {result.role}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* Links */}

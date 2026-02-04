@@ -10,6 +10,7 @@ import societyRoutes from "./routes/societyRoutes.js";
 import recruitmentRoutes from "./routes/recruitmentRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 import { connectCloudinary } from "./utils/cloudinary.js";
 
 // Load environment variables
@@ -50,6 +51,7 @@ app.use("/api/societies", societyRoutes);
 app.use("/api/recruitment", recruitmentRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/search", searchRoutes);
 
 // Global error handler (basic)
 app.use((err, req, res, next) => {
