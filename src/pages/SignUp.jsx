@@ -2,6 +2,7 @@ import React from "react";
 import { useSearchParams } from "react-router-dom";
 import SignupForm from "@/components/core/auth/SignupForm";
 import OpenRoute from "@/components/core/auth/OpenRoute";
+import Navbar from "@/components/common/Navbar";
 
 function SignUp() {
   const [searchParams] = useSearchParams();
@@ -9,8 +10,11 @@ function SignUp() {
 
   return (
     <OpenRoute>
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
-        <SignupForm role={role} />
+      <div className="min-h-screen bg-slate-950">
+        <Navbar />
+        <div className="flex items-center justify-center px-4 py-10 sm:py-14">
+          <SignupForm role={role} />
+        </div>
       </div>
     </OpenRoute>
   );

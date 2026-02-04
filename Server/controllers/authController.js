@@ -224,7 +224,7 @@ export const registerFaculty = async (req, res) => {
 // Generic student signup – starts with STUDENT role.
 export const registerStudent = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword, otp } = req.body;
+    const { firstName, lastName, email, password, confirmPassword, otp, role } = req.body;
 
     if (!firstName || !lastName || !email || !password || !confirmPassword || !otp) {
       return res.status(400).json({
@@ -272,12 +272,28 @@ export const registerStudent = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Allow student sub-roles to be set at signup (CORE/HEAD/MEMBER).
+    // If not provided, default to STUDENT for backward compatibility.
+    const allowedStudentRoles = new Set([
+      ROLES.STUDENT,
+      ROLES.CORE,
+      ROLES.HEAD,
+      ROLES.MEMBER,
+    ]);
+
+    const normalizedRole =
+      typeof role === "string" ? role.trim().toUpperCase() : ROLES.STUDENT;
+
+    const finalRole = allowedStudentRoles.has(normalizedRole)
+      ? normalizedRole
+      : ROLES.STUDENT;
+
     const user = await User.create({
       firstName,
       lastName,
       email,
       password: hashedPassword,
-      role: ROLES.STUDENT,
+      role: finalRole,
     });
 
     await createAuditLog({
@@ -314,7 +330,7 @@ export const registerStudent = async (req, res) => {
 // Login – common for all roles.
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -337,6 +353,17 @@ export const login = async (req, res) => {
         success: false,
         message: "Invalid credentials.",
       });
+    }
+
+    // Optional: if role is provided by client, ensure it matches.
+    if (role) {
+      const normalizedRole = typeof role === "string" ? role.trim().toUpperCase() : "";
+      if (normalizedRole && normalizedRole !== user.role) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid credentials.",
+        });
+      }
     }
 
     const token = issueToken(user);

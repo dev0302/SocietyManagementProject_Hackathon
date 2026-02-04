@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,11 +11,17 @@ import { SpinnerCustom } from "@/components/ui/spinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail } from "lucide-react";
 
-function SignupForm({ role = "student" }) {
+function SignupForm({ role: initialRole = "student" }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading } = useSelector((state) => state.auth);
   const [step, setStep] = useState(1); // 1: form, 2: OTP sent
+  const [accountType, setAccountType] = useState(
+    ["admin", "faculty", "student"].includes((initialRole || "").toLowerCase())
+      ? initialRole.toLowerCase()
+      : "student"
+  );
+  const [studentType, setStudentType] = useState("MEMBER"); // CORE | HEAD | MEMBER
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -25,6 +31,12 @@ function SignupForm({ role = "student" }) {
     otp: "",
   });
   const [sendingOTP, setSendingOTP] = useState(false);
+
+  const title = useMemo(() => {
+    if (accountType === "admin") return "Admin";
+    if (accountType === "faculty") return "Faculty";
+    return "Student";
+  }, [accountType]);
 
   const handleSendOTP = async () => {
     if (!formData.email) {
@@ -80,12 +92,15 @@ function SignupForm({ role = "student" }) {
 
     try {
       let response;
-      if (role === "admin") {
+      if (accountType === "admin") {
         response = await registerAdmin(formData);
-      } else if (role === "faculty") {
+      } else if (accountType === "faculty") {
         response = await registerFaculty(formData);
       } else {
-        response = await registerStudent(formData);
+        response = await registerStudent({
+          ...formData,
+          role: studentType, // CORE | HEAD | MEMBER (backend defaults to STUDENT if invalid/missing)
+        });
       }
 
       if (response.success) {
@@ -105,15 +120,73 @@ function SignupForm({ role = "student" }) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-xl">Sign Up - {role.charAt(0).toUpperCase() + role.slice(1)}</CardTitle>
+        <CardTitle className="text-xl">Sign Up - {title}</CardTitle>
         <CardDescription>
-          {role === "admin" && "Email must be pre-approved in platform config"}
-          {role === "faculty" && "Email must be in faculty whitelist"}
-          {role === "student" && "Create your student account"}
+          {accountType === "admin" && "Email must be pre-approved in platform config"}
+          {accountType === "faculty" && "Email must be in faculty whitelist"}
+          {accountType === "student" && "Create your student account"}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Account type selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-slate-300">Sign up as</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: "admin", label: "Admin" },
+                { key: "faculty", label: "Faculty" },
+                { key: "student", label: "Student" },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  disabled={step > 1}
+                  onClick={() => {
+                    setAccountType(opt.key);
+                    // keep student subtype defaulted
+                    if (opt.key !== "student") setStudentType("MEMBER");
+                  }}
+                  className={`rounded-lg border px-3 py-2 text-sm transition-all ${
+                    accountType === opt.key
+                      ? "border-sky-400/60 bg-sky-500/10 text-slate-50"
+                      : "border-slate-800/80 bg-slate-900/40 text-slate-300 hover:text-slate-50"
+                  } ${step > 1 ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Student subtype selector */}
+          {accountType === "student" && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-300">Student type</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: "CORE", label: "Core" },
+                  { key: "HEAD", label: "Head" },
+                  { key: "MEMBER", label: "Member" },
+                ].map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    disabled={step > 1}
+                    onClick={() => setStudentType(opt.key)}
+                    className={`rounded-lg border px-3 py-2 text-sm transition-all ${
+                      studentType === opt.key
+                        ? "border-cyan-400/60 bg-cyan-500/10 text-slate-50"
+                        : "border-slate-800/80 bg-slate-900/40 text-slate-300 hover:text-slate-50"
+                    } ${step > 1 ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-300">First Name</label>

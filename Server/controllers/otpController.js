@@ -1,5 +1,6 @@
 import otpGenerator from "otp-generator";
 import OTP from "../models/OTP.js";
+import User from "../models/User.js";
 import mailSender from "../utils/mailSender.js";
 import { emailVerificationTemplate } from "../mail/templates/emailVerificationTemplate.js";
 
@@ -11,6 +12,15 @@ export const sendOTP = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Email is required.",
+      });
+    }
+
+    // Signup guard: do not send OTP if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() }).select("_id");
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists. Please log in instead.",
       });
     }
 
