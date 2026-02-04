@@ -14,13 +14,17 @@ import { getMyCollege } from "@/services/operations/collegeAPI";
 import { fetchMyAnnouncements } from "@/services/operations/announcementAPI";
 import {
   LayoutDashboard,
-  Settings2,
   Users2,
   Megaphone,
   CalendarDays,
   IdCard,
-  ClipboardList,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  createMemberInviteLink,
+  createMemberInviteByEmail,
+} from "@/services/operations/headAPI";
+import Input from "@/components/ui/input";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -29,6 +33,12 @@ function Dashboard() {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [college, setCollege] = useState(null);
   const [loadingCollege, setLoadingCollege] = useState(false);
+
+  const [headShowAddMembers, setHeadShowAddMembers] = useState(false);
+  const [headInviteLink, setHeadInviteLink] = useState(null);
+  const [headInviteLinkLoading, setHeadInviteLinkLoading] = useState(false);
+  const [headInviteEmail, setHeadInviteEmail] = useState("");
+  const [headInviteEmailLoading, setHeadInviteEmailLoading] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -286,6 +296,128 @@ function Dashboard() {
                         </p>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+      case ROLES.HEAD:
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="space-y-4"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <LayoutDashboard className="h-4 w-4 text-sky-400" />
+                  Student head dashboard
+                </CardTitle>
+                <CardDescription>
+                  You are the head of your department. Add members and manage your team.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button onClick={() => setHeadShowAddMembers((v) => !v)}>
+                  <Users2 className="mr-2 h-4 w-4" />
+                  {headShowAddMembers ? "Hide add members" : "Add members"}
+                </Button>
+
+                {headShowAddMembers && (
+                  <div className="space-y-6 rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-slate-300">Invite link</p>
+                      <p className="text-xs text-slate-400">
+                        Share this link. Whoever uses it will be added as a Member of your
+                        department.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            setHeadInviteLink(null);
+                            setHeadInviteLinkLoading(true);
+                            try {
+                              const data = await createMemberInviteLink();
+                              if (data?.success && data?.data?.link) {
+                                setHeadInviteLink(data.data.link);
+                                toast.success("Link generated. Share it to add members.");
+                              } else throw new Error(data?.message);
+                            } catch (e) {
+                              toast.error(e?.message || "Failed to generate link.");
+                            } finally {
+                              setHeadInviteLinkLoading(false);
+                            }
+                          }}
+                          disabled={headInviteLinkLoading}
+                        >
+                          {headInviteLinkLoading ? "Generating…" : "Generate link"}
+                        </Button>
+                        {headInviteLink && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(headInviteLink);
+                              toast.success("Link copied.");
+                            }}
+                          >
+                            Copy link
+                          </Button>
+                        )}
+                      </div>
+                      {headInviteLink && (
+                        <p className="break-all rounded border border-slate-800 bg-slate-900/60 px-2 py-1 text-xs text-slate-300">
+                          {headInviteLink}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 border-t border-slate-800 pt-4">
+                      <p className="text-xs font-medium text-slate-300">Add by email</p>
+                      <p className="text-xs text-slate-400">
+                        Invite a specific person by email; they will be added as Member when
+                        they accept.
+                      </p>
+                      <form
+                        className="flex flex-wrap gap-2"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const email = headInviteEmail.trim();
+                          if (!email) {
+                            toast.error("Enter an email.");
+                            return;
+                          }
+                          setHeadInviteEmailLoading(true);
+                          try {
+                            const data = await createMemberInviteByEmail(email);
+                            if (data?.success) {
+                              toast.success("Invite created. Share the link with the user.");
+                              if (data?.data?.link) setHeadInviteLink(data.data.link);
+                              setHeadInviteEmail("");
+                            } else throw new Error(data?.message);
+                          } catch (err) {
+                            toast.error(err?.message || "Failed to send invite.");
+                          } finally {
+                            setHeadInviteEmailLoading(false);
+                          }
+                        }}
+                      >
+                        <Input
+                          type="email"
+                          placeholder="email@example.com"
+                          value={headInviteEmail}
+                          onChange={(e) => setHeadInviteEmail(e.target.value)}
+                          className="min-w-[200px]"
+                        />
+                        <Button type="submit" size="sm" disabled={headInviteEmailLoading}>
+                          {headInviteEmailLoading ? "Sending…" : "Send invite"}
+                        </Button>
+                      </form>
+                    </div>
                   </div>
                 )}
               </CardContent>

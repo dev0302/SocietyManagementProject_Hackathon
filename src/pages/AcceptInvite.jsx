@@ -64,7 +64,11 @@ function AcceptInvite() {
       const data = await acceptInvite({ token });
       if (data?.success) {
         setAccepted(true);
-        toast.success("Invite accepted. You are now added as Head.");
+        toast.success(
+          inviteInfo?.role === "MEMBER"
+            ? "Invite accepted. You are now added as a Member."
+            : "Invite accepted. You are now added as Head."
+        );
         setTimeout(() => navigate("/dashboard", { replace: true }), 1500);
       } else {
         throw new Error(data?.message || "Failed to accept invite.");
@@ -106,7 +110,11 @@ function AcceptInvite() {
       if (data?.success && data?.user && data?.token) {
         dispatch(setUser(data.user));
         dispatch(setToken(data.token));
-        toast.success("Account created. You are now Head of the department.");
+        toast.success(
+          inviteInfo?.role === "MEMBER"
+            ? "Account created. You are now a Member of the department."
+            : "Account created. You are now Head of the department."
+        );
         setTimeout(() => navigate("/dashboard", { replace: true }), 800);
       } else {
         throw new Error(data?.message || "Sign up failed.");
@@ -183,7 +191,8 @@ function AcceptInvite() {
             <CardHeader>
               <CardTitle>Department invite</CardTitle>
               <CardDescription>
-                You have been invited to join as <strong>Head</strong> of{" "}
+                You have been invited to join as{" "}
+                <strong>{inviteInfo.role === "MEMBER" ? "Member" : "Head"}</strong> of{" "}
                 <strong>{inviteInfo.departmentName}</strong>. Accept to continue.
               </CardDescription>
             </CardHeader>
@@ -216,9 +225,13 @@ function AcceptInvite() {
       <main className="mx-auto flex max-w-md flex-1 items-center justify-center px-4 py-8">
         <Card className="w-full bg-slate-900/60 border-slate-800">
           <CardHeader>
-            <CardTitle>Join as Head of {inviteInfo.departmentName}</CardTitle>
+            <CardTitle>
+              Join as {inviteInfo.role === "MEMBER" ? "Member" : "Head"} of{" "}
+              {inviteInfo.departmentName}
+            </CardTitle>
             <CardDescription>
-              Create your account to be enrolled as <strong>Head</strong> of{" "}
+              Create your account to be enrolled as{" "}
+              <strong>{inviteInfo.role === "MEMBER" ? "Member" : "Head"}</strong> of{" "}
               <strong>{inviteInfo.departmentName}</strong>. Position and department are fixed.
             </CardDescription>
           </CardHeader>
@@ -284,7 +297,9 @@ function AcceptInvite() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={signingUp}>
-                {signingUp ? "Creating account…" : "Create account & join as Head"}
+                {signingUp
+                  ? "Creating account…"
+                  : `Create account & join as ${inviteInfo.role === "MEMBER" ? "Member" : "Head"}`}
               </Button>
             </form>
           </CardContent>
