@@ -10,6 +10,8 @@ import CreateSociety from "@/pages/faculty/CreateSociety";
 import CreateApplication from "@/pages/student/CreateApplication";
 import PostAnnouncement from "@/pages/student/PostAnnouncement";
 import CoreEvents from "@/pages/student/CoreEvents";
+import ManageMembers from "@/pages/student/ManageMembers";
+import CoreDepartments from "@/pages/student/CoreDepartments";
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
       <Route path="/student/create-application" element={<CreateApplication />} />
       <Route path="/student/core/announcements" element={<PostAnnouncement />} />
       <Route path="/student/core/events" element={<CoreEvents />} />
+      <Route path="/student/core/manage-members" element={<ManageMembers />} />
+      <Route path="/student/core/departments" element={<CoreDepartments />} />
     </Routes>
   );
 }
