@@ -8,6 +8,7 @@ import {
   createSocietyRequest,
   getMySocietyRequests,
   getMyCollegeSocieties,
+  getCollegeEvents,
   approveSocietyRequest,
   rejectSocietyRequest,
 } from "../controllers/collegeController.js";
@@ -22,9 +23,10 @@ router.post("/me", auth, isAdmin, upsertMyCollege);
 router.get("/code/:code", getCollegeByCode);
 router.post("/society-request", createSocietyRequest);
 
-// Admin endpoints for society requests + college societies
+// Admin endpoints for society requests + college societies + events
 router.get("/requests", auth, isAdmin, getMySocietyRequests);
 router.get("/societies", auth, isAdmin, getMyCollegeSocieties);
+router.get("/events", auth, isAdmin, getCollegeEvents);
 router.post("/requests/:requestId/approve", auth, isAdmin, approveSocietyRequest);
 router.post("/requests/:requestId/reject", auth, isAdmin, rejectSocietyRequest);
 

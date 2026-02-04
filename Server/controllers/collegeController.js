@@ -1,4 +1,5 @@
 import College from "../models/College.js";
+import Event from "../models/Event.js";
 import OTP from "../models/OTP.js";
 import Society from "../models/Society.js";
 import SocietyRequest from "../models/SocietyRequest.js";
@@ -241,6 +242,81 @@ export const getMySocietyRequests = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch society requests.",
+    });
+  }
+};
+
+// Helper for date range filters
+const getEventsDateRange = (filter) => {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+  const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+  const endOfTomorrow = new Date(startOfTomorrow.getTime() + 24 * 60 * 60 * 1000 - 1);
+  switch (filter) {
+    case "today":
+      return { $gte: startOfToday, $lte: endOfToday };
+    case "yesterday":
+      return { $gte: startOfYesterday, $lt: startOfToday };
+    case "tomorrow":
+      return { $gte: startOfTomorrow, $lte: endOfTomorrow };
+    case "upcoming":
+      return { $gt: endOfToday };
+    case "past":
+      return { $lt: startOfToday };
+    default:
+      return null;
+  }
+};
+
+// Admin: get all events from college societies
+// Query: filter=upcoming|today|yesterday|tomorrow|past, category=TECH|NON_TECH
+export const getCollegeEvents = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const college = await College.findOne({ admin: adminId });
+    if (!college) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const societies = await Society.find({
+      college: college._id,
+      isActive: true,
+    }).select("_id category");
+
+    const societyIds = societies.map((s) => s._id);
+    if (societyIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const { filter, category } = req.query;
+    const match = { society: { $in: societyIds } };
+
+    const dateRange = filter ? getEventsDateRange(filter) : null;
+    if (dateRange) {
+      match.date = dateRange;
+    }
+
+    let filteredSocietyIds = societyIds;
+    if (category && ["TECH", "NON_TECH"].includes(category)) {
+      filteredSocietyIds = societies.filter((s) => s.category === category).map((s) => s._id);
+      if (filteredSocietyIds.length === 0) {
+        return res.status(200).json({ success: true, data: [] });
+      }
+      match.society = { $in: filteredSocietyIds };
+    }
+
+    const events = await Event.find(match)
+      .populate("society", "name category logoUrl")
+      .sort({ date: 1 })
+      .lean();
+
+    return res.status(200).json({ success: true, data: events });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch college events.",
     });
   }
 };

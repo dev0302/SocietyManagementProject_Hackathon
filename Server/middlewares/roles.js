@@ -32,4 +32,5 @@ export const isFaculty = requireRoles([ROLES.FACULTY]);
 export const isCore = requireRoles([ROLES.CORE]);
 export const isHead = requireRoles([ROLES.HEAD]);
 export const isMember = requireRoles([ROLES.MEMBER]);
+export const isFacultyOrCoreOrHead = requireRoles([ROLES.FACULTY, ROLES.CORE, ROLES.HEAD]);
 

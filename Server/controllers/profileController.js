@@ -11,7 +11,7 @@ export const getMyProfile = async (req, res) => {
     const user = await User.findById(userId)
       .select("-password")
       .populate("profile")
-      .populate("membership")
+      .populate({ path: "membership", populate: { path: "society" } })
       .exec();
 
     if (!user) {

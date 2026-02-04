@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import PrivateRoute from "@/components/core/auth/PrivateRoute";
 import Navbar from "@/components/common/Navbar";
@@ -9,12 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Input from "@/components/ui/input";
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
-import { PlusCircle, ListChecks, Pencil } from "lucide-react";
+import { PlusCircle, ListChecks, Pencil, Calendar, Users2 } from "lucide-react";
 import {
   getMyCollege,
   upsertMyCollege,
   getMySocietyRequests,
   getMyCollegeSocieties,
+  getCollegeEvents,
   approveSocietyRequest,
   rejectSocietyRequest,
 } from "@/services/operations/collegeAPI";
@@ -41,6 +42,11 @@ function College() {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAddSociety, setShowAddSociety] = useState(false);
   const [showPendingRequests, setShowPendingRequests] = useState(false);
+  const [activeNav, setActiveNav] = useState("society"); // "society" | "events"
+  const [events, setEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [eventFilter, setEventFilter] = useState("upcoming"); // upcoming, today, yesterday, tomorrow, past
+  const [eventCategory, setEventCategory] = useState(""); // "", "TECH", "NON_TECH"
 
   const inviteUrl = useMemo(() => {
     if (!college) return "";
@@ -100,6 +106,25 @@ function College() {
 
     loadCollegeAndRelations();
   }, []);
+
+  useEffect(() => {
+    if (activeNav !== "events" || !college) return;
+    const loadEvents = async () => {
+      setLoadingEvents(true);
+      try {
+        const params = {};
+        if (eventFilter) params.filter = eventFilter;
+        if (eventCategory) params.category = eventCategory;
+        const res = await getCollegeEvents(params);
+        if (res.success) setEvents(res.data || []);
+      } catch {
+        setEvents([]);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+    loadEvents();
+  }, [activeNav, college, eventFilter, eventCategory]);
 
   const handleChange = (field) => (e) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
@@ -224,28 +249,54 @@ function College() {
           </div>
 
           {college && (
-            <Card className="mb-6">
-              <CardHeader className="flex flex-row items-center justify-between gap-4">
-                <div>
+            <>
+              <Card className="mb-4">
+                <CardHeader>
                   <CardTitle>{college.name}</CardTitle>
                   <CardDescription>
                     {college.email}
                     {college.address && ` • ${college.address}`}
                   </CardDescription>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+                </CardHeader>
+              </Card>
+
+              <nav className="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveNav("society")}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    activeNav === "society"
+                      ? "bg-slate-800 text-slate-100"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Users2 className="h-4 w-4" />
+                  Society
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveNav("events")}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    activeNav === "events"
+                      ? "bg-slate-800 text-slate-100"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Events
+                </button>
+              </nav>
+
+              {activeNav === "society" && (
+                <div className="mb-6 flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowProfileEditor((prev) => !prev)}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Edit profile
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowAddSociety((prev) => !prev)}
+                    onClick={() => {
+                      setShowAddSociety((prev) => !prev);
+                      setShowPendingRequests(false);
+                      setShowProfileEditor(false);
+                    }}
                   >
                     <PlusCircle className="mr-1 h-4 w-4" />
                     Add society
@@ -253,17 +304,113 @@ function College() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowPendingRequests((prev) => !prev)}
+                    onClick={() => {
+                      setShowPendingRequests((prev) => !prev);
+                      setShowAddSociety(false);
+                      setShowProfileEditor(false);
+                    }}
                   >
                     <ListChecks className="mr-1 h-4 w-4" />
                     Pending requests
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowProfileEditor((prev) => !prev);
+                      setShowAddSociety(false);
+                      setShowPendingRequests(false);
+                    }}
+                  >
+                    <Pencil className="mr-1 h-4 w-4" />
+                    Edit profile
+                  </Button>
                 </div>
-              </CardHeader>
-            </Card>
+              )}
+            </>
           )}
 
-          {showProfileEditor && (
+          {activeNav === "events" && college && (
+            <div className="mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>College events</CardTitle>
+                  <CardDescription>
+                    Events from all societies. Filter by date and society type.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {["upcoming", "today", "yesterday", "tomorrow", "past"].map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setEventFilter(f)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                          eventFilter === f
+                            ? "bg-sky-500/20 text-sky-300"
+                            : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                    <span className="mx-1 text-slate-600">|</span>
+                    {["", "TECH", "NON_TECH"].map((c) => (
+                      <button
+                        key={c || "all"}
+                        type="button"
+                        onClick={() => setEventCategory(c)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                          eventCategory === c
+                            ? "bg-sky-500/20 text-sky-300"
+                            : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {c || "All"}
+                      </button>
+                    ))}
+                  </div>
+                  {loadingEvents ? (
+                    <p className="text-sm text-slate-500">Loading events…</p>
+                  ) : events.length === 0 ? (
+                    <p className="text-sm text-slate-500">No events found.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {events.map((ev) => (
+                        <div
+                          key={ev._id}
+                          className="flex flex-wrap items-start gap-3 rounded-md border border-slate-800 bg-slate-900/70 p-3"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-100">{ev.title}</p>
+                            {ev.description && (
+                              <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">
+                                {ev.description}
+                              </p>
+                            )}
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                              <span>
+                                {ev.date ? new Date(ev.date).toLocaleString() : ""}
+                              </span>
+                              {ev.venue && <span>• {ev.venue}</span>}
+                              {ev.society?.name && (
+                                <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-sky-300">
+                                  {ev.society.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {showProfileEditor && (!college || activeNav === "society") && (
             <Card>
               <CardHeader>
                 <CardTitle>College profile</CardTitle>
@@ -349,7 +496,7 @@ function College() {
             </Card>
           )}
 
-          {college && showAddSociety && (
+          {college && activeNav === "society" && showAddSociety && (
             <div className="mt-8">
               <Card>
                 <CardHeader>
@@ -390,7 +537,7 @@ function College() {
             </div>
           )}
 
-          {college && showPendingRequests && (
+          {college && activeNav === "society" && showPendingRequests && (
             <div className="mt-8">
               <Card>
                 <CardHeader>
@@ -445,8 +592,8 @@ function College() {
             </div>
           )}
 
-          {college && (
-            <div className="mt-8">
+          {college && activeNav === "society" && (
+            <div className="mt-4">
               <Card>
                 <CardHeader>
                   <CardTitle>College societies</CardTitle>
@@ -464,9 +611,11 @@ function College() {
                   ) : (
                     <div className="grid gap-3 md:grid-cols-2">
                       {societies.map((s) => (
-                        <div
+                        <Link
                           key={s._id}
-                          className="flex items-start gap-3 rounded-md border border-slate-800 bg-slate-900/70 p-3"
+                          to={`/society/${s._id}`}
+                          state={s}
+                          className="flex items-start gap-3 rounded-md border border-slate-800 bg-slate-900/70 p-3 transition-colors hover:border-slate-700 hover:bg-slate-800/80 cursor-pointer"
                         >
                           {s.logoUrl && (
                             <img
@@ -487,7 +636,7 @@ function College() {
                               </p>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}

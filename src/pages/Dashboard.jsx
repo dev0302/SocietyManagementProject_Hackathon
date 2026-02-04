@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PrivateRoute from "@/components/core/auth/PrivateRoute";
@@ -100,20 +100,19 @@ function Dashboard() {
                     Configure your college once and use its unique code to onboard societies and
                     faculty in a structured way.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => navigate("/admin/platform-config")}>
-                      Platform configuration
-                    </Button>
-                    <Button onClick={() => navigate("/admin/college")}>
-                      {college ? "View college interface" : "Set up college profile"}
-                    </Button>
-                  </div>
+                  <Button variant="outline" onClick={() => navigate("/admin/platform-config")}>
+                    Platform configuration
+                  </Button>
                 </div>
                 <div className="mt-2">
                   {loadingCollege ? (
                     <p className="text-xs text-slate-500">Loading college profile…</p>
                   ) : college ? (
-                    <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                    <Link
+                      to="/admin/college"
+                      state={college}
+                      className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-800 bg-slate-900/60 p-3 transition-colors hover:border-slate-700 hover:bg-slate-800/80 cursor-pointer block"
+                    >
                       <div className="flex flex-col">
                         <span className="text-sm font-semibold text-slate-100">
                           {college.name}
@@ -131,12 +130,11 @@ function Dashboard() {
                           Status: {college.isVerified ? "Verified" : "Pending verification"}
                         </span>
                       </div>
-                    </div>
+                    </Link>
                   ) : (
-                    <p className="text-xs text-slate-500">
-                      No college profile configured yet. Click &quot;Set up college profile&quot; to
-                      get started.
-                    </p>
+                    <Button onClick={() => navigate("/admin/college")}>
+                      Set up college profile
+                    </Button>
                   )}
                 </div>
               </CardContent>

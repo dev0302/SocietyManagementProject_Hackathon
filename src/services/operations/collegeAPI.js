@@ -72,3 +72,12 @@ export const rejectSocietyRequest = async (requestId) => {
   }
 };
 
+export const getCollegeEvents = async (params = {}) => {
+  try {
+    const response = await apiConnector.get("/api/college/events", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+

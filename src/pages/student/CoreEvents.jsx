@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PrivateRoute from "@/components/core/auth/PrivateRoute";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
 import { toast } from "sonner";
-import { createEvent } from "@/services/operations/eventAPI";
+import { createEvent, getSocietyEvents } from "@/services/operations/eventAPI";
+import { getMyProfile } from "@/services/operations/profileAPI";
 
 const initialEvents = [
   {
@@ -40,6 +41,37 @@ function CoreEvents() {
   const [description, setDescription] = useState("");
   const [events, setEvents] = useState(initialEvents);
   const [submitting, setSubmitting] = useState(false);
+  const [societyId, setSocietyId] = useState(null);
+  const [loadingSociety, setLoadingSociety] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await getMyProfile();
+        const socId = res?.data?.membership?.society?._id || res?.data?.membership?.society;
+        setSocietyId(socId || null);
+        if (socId) {
+          const evRes = await getSocietyEvents(socId);
+          if (evRes?.success && Array.isArray(evRes.data)) {
+            setEvents(
+              evRes.data.map((e) => ({
+                id: e._id,
+                title: e.title,
+                date: e.date ? new Date(e.date).toISOString().split("T")[0] : "",
+                venue: e.venue || "",
+                status: e.date && new Date(e.date) < new Date() ? "Completed" : "Scheduled",
+              }))
+            );
+          }
+        }
+      } catch {
+        setSocietyId(null);
+      } finally {
+        setLoadingSociety(false);
+      }
+    };
+    load();
+  }, []);
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
@@ -55,8 +87,9 @@ function CoreEvents() {
       const payload = {
         title: eventTitle.trim(),
         description: description.trim(),
-        // Combine date and time into a single ISO-like string. Backend will cast to Date.
+        venue: venue.trim(),
         date: `${eventDate}T${eventTime}`,
+        ...(societyId && { societyId }),
       };
 
       const data = await createEvent(payload);
@@ -65,7 +98,7 @@ function CoreEvents() {
         throw new Error(data.message || "Failed to create event.");
       }
 
-      // Update local list with a simple representation
+      // Update local list with new event
       setEvents((prev) => [
         ...prev,
         {

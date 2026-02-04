@@ -9,3 +9,12 @@ export const createEvent = async (data) => {
   }
 };
 
+export const getSocietyEvents = async (societyId, params = {}) => {
+  try {
+    const response = await apiConnector.get(`/api/events/society/${societyId}`, { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+

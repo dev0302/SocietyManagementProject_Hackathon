@@ -1,12 +1,15 @@
 import { Router } from "express";
-import { createEvent } from "../controllers/eventController.js";
+import { createEvent, getSocietyEvents } from "../controllers/eventController.js";
 import { auth } from "../middlewares/auth.js";
-import { isCore } from "../middlewares/roles.js";
+import { isFacultyOrCoreOrHead } from "../middlewares/roles.js";
 
 const router = Router();
 
-// Core student creates an event
-router.post("/", auth, isCore, createEvent);
+// Faculty, Core, or Head creates an event
+router.post("/", auth, isFacultyOrCoreOrHead, createEvent);
+
+// Get events for a society (authenticated users)
+router.get("/society/:societyId", auth, getSocietyEvents);
 
 export default router;
 
