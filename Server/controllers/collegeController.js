@@ -760,6 +760,7 @@ export const createSocietyFromInvite = async (req, res) => {
         success: false,
         message: "Invite has expired.",
       });
+    }
     if (invite.facultyHeadEmail !== req.user.email.toLowerCase()) {
       return res.status(403).json({
         success: false,

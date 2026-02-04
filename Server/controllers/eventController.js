@@ -308,6 +308,7 @@ export const acceptEventInvite = async (req, res) => {
         success: false,
         message: "Invite has expired.",
       });
+    }
     if (invite.email !== req.user.email.toLowerCase()) {
       return res.status(403).json({
         success: false,

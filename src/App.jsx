@@ -17,11 +17,8 @@ import PostAnnouncement from "@/pages/student/PostAnnouncement";
 import CoreEvents from "@/pages/student/CoreEvents";
 import ManageMembers from "@/pages/student/ManageMembers";
 import CoreDepartments from "@/pages/student/CoreDepartments";
-<<<<<<< HEAD
 import EventDetail from "@/pages/EventDetail";
-=======
 import AcceptInvite from "@/pages/AcceptInvite";
->>>>>>> a91402f3032014389c9f9f6a46168e2de876dd7a
 
 function App() {
   return (
