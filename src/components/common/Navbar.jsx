@@ -16,6 +16,7 @@ import Button from "@/components/ui/button";
 import ProfileDropDown from "@/components/core/HomePage/ProfileDropDown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { searchUsers } from "@/services/operations/searchAPI";
+import { logout as apiLogout } from "@/services/operations/authAPI";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -73,7 +74,9 @@ function Navbar() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Ensure both server-side cookie and client-side state are cleared
+    await apiLogout();
     dispatch(logout());
     toast.success("Logged out successfully");
     navigate("/");

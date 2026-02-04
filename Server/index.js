@@ -14,6 +14,7 @@ import coreRoutes from "./routes/coreRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
+import collegeRoutes from "./routes/collegeRoutes.js";
 import { connectCloudinary } from "./utils/cloudinary.js";
 
 // Load environment variables
@@ -58,6 +59,7 @@ app.use("/api/search", searchRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/core", coreRoutes);
+app.use("/api/college", collegeRoutes);
 
 // Global error handler (basic)
 app.use((err, req, res, next) => {

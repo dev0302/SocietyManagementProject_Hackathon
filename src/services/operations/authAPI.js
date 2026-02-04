@@ -45,7 +45,15 @@ export const changePassword = async (data) => {
   }
 };
 
-export const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+// Call backend logout to clear cookie as well as any client state.
+export const logout = async () => {
+  try {
+    await apiConnector.post("/api/auth/logout");
+  } catch (error) {
+    // Swallow errors so logout UX isn't blocked
+    console.error("Logout API error:", error);
+  } finally {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
 };

@@ -9,7 +9,10 @@ export const auth = async (req, res, next) => {
       ? req.headers.authorization.split(" ")[1]
       : null;
 
-    const token = req.cookies?.Token || headerToken;
+    // Prefer explicit Authorization header over cookie so that
+    // the currently logged-in user (token managed by frontend)
+    // always takes precedence over any stale auth cookie.
+    const token = headerToken || req.cookies?.Token;
 
     if (!token) {
       return res.status(401).json({

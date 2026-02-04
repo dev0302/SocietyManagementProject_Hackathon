@@ -8,6 +8,8 @@ import SignUp from "@/pages/SignUp";
 import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import PlatformConfig from "@/pages/admin/PlatformConfig";
+import College from "@/pages/admin/College";
+import SocietyOnboard from "@/pages/SocietyOnboard";
 import CreateSociety from "@/pages/faculty/CreateSociety";
 import CreateApplication from "@/pages/student/CreateApplication";
 import PostAnnouncement from "@/pages/student/PostAnnouncement";
@@ -26,6 +28,8 @@ function App() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin/platform-config" element={<PlatformConfig />} />
+      <Route path="/admin/college" element={<College />} />
+      <Route path="/society/onboard" element={<SocietyOnboard />} />
       <Route path="/faculty/create-society" element={<CreateSociety />} />
       <Route path="/student/create-application" element={<CreateApplication />} />
       <Route path="/student/core/announcements" element={<PostAnnouncement />} />

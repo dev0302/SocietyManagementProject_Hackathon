@@ -5,6 +5,7 @@ import {
   registerStudent,
   login,
   changePassword,
+  logout,
 } from "../controllers/authController.js";
 import { auth } from "../middlewares/auth.js";
 
@@ -16,6 +17,7 @@ router.post("/register/faculty", registerFaculty);
 router.post("/register/student", registerStudent);
 router.post("/login", login);
 router.post("/change-password", auth, changePassword);
+router.post("/logout", auth, logout);
 
 export default router;
 

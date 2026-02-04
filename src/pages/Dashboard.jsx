@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Button from "@/components/ui/button";
 import { ROLES } from "@/config/roles";
+import { getMyCollege } from "@/services/operations/collegeAPI";
 import { fetchMyAnnouncements } from "@/services/operations/announcementAPI";
 import {
   LayoutDashboard,
@@ -26,6 +27,8 @@ function Dashboard() {
   const { user } = useSelector((state) => state.auth);
   const [coreAnnouncements, setCoreAnnouncements] = useState([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [college, setCollege] = useState(null);
+  const [loadingCollege, setLoadingCollege] = useState(false);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -51,6 +54,25 @@ function Dashboard() {
     loadAnnouncements();
   }, [user.role]);
 
+  useEffect(() => {
+    const loadCollege = async () => {
+      if (user.role !== ROLES.ADMIN) return;
+      try {
+        setLoadingCollege(true);
+        const response = await getMyCollege();
+        if (response.success) {
+          setCollege(response.data || null);
+        }
+      } catch {
+        // ignore on dashboard
+      } finally {
+        setLoadingCollege(false);
+      }
+    };
+
+    loadCollege();
+  }, [user.role]);
+
   const getDashboardContent = () => {
     switch (user.role) {
       case ROLES.ADMIN:
@@ -68,17 +90,55 @@ function Dashboard() {
                   Admin dashboard
                 </CardTitle>
                 <CardDescription>
-                  Manage platform configuration, faculty access, and other institution-wide settings.
+                  Manage your college profile, platform configuration, faculty access, and other
+                  institution-wide settings.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-300">
-                <p className="max-w-md">
-                  Use this area to control who can log in, which faculty can create societies, and
-                  how the platform behaves for your college.
-                </p>
-                <Button onClick={() => navigate("/admin/platform-config")}>
-                  Open platform configuration
-                </Button>
+              <CardContent className="space-y-4 text-sm text-slate-300">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="max-w-md">
+                    Configure your college once and use its unique code to onboard societies and
+                    faculty in a structured way.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => navigate("/admin/platform-config")}>
+                      Platform configuration
+                    </Button>
+                    <Button onClick={() => navigate("/admin/college")}>
+                      {college ? "View college interface" : "Set up college profile"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  {loadingCollege ? (
+                    <p className="text-xs text-slate-500">Loading college profile…</p>
+                  ) : college ? (
+                    <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-slate-100">
+                          {college.name}
+                        </span>
+                        <span className="text-xs text-slate-400">{college.email}</span>
+                        {college.address && (
+                          <span className="mt-1 text-xs text-slate-400">{college.address}</span>
+                        )}
+                      </div>
+                      <div className="ml-auto flex flex-col items-end gap-1 text-xs">
+                        <span className="rounded-full bg-slate-800 px-2 py-0.5 font-mono text-[11px] text-sky-300">
+                          Code: {college.uniqueCode}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Status: {college.isVerified ? "Verified" : "Pending verification"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      No college profile configured yet. Click &quot;Set up college profile&quot; to
+                      get started.
+                    </p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
