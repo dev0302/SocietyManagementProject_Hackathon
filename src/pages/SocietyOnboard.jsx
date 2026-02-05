@@ -30,13 +30,8 @@ function SocietyOnboard() {
   const [loadingInvite, setLoadingInvite] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
     category: "TECH",
-    logoUrl: "",
-    facultyName: "",
     facultyEmail: "",
-    presidentName: "",
-    email: "",
     collegeCode: "",
   });
 
@@ -135,13 +130,19 @@ function SocietyOnboard() {
     if (inviteData) {
       return handleSubmitFromInvite(e);
     }
-    if (!formData.name || !formData.email || !formData.collegeCode) {
-      toast.error("Society name, email and college code are required");
+    if (!formData.name || !formData.facultyEmail || !formData.collegeCode) {
+      toast.error("Society name, faculty email and college code are required");
       return;
     }
     setSubmitting(true);
     try {
-      const response = await createSocietyRequest(formData);
+      const payload = {
+        name: formData.name,
+        category: formData.category,
+        facultyEmail: formData.facultyEmail,
+        collegeCode: formData.collegeCode,
+      };
+      const response = await createSocietyRequest(payload);
       if (!response.success) {
         throw new Error(response.message || "Failed to submit request");
       }
@@ -149,11 +150,7 @@ function SocietyOnboard() {
       setFormData((prev) => ({
         ...prev,
         name: "",
-        logoUrl: "",
-        facultyName: "",
         facultyEmail: "",
-        presidentName: "",
-        email: "",
       }));
     } catch (error) {
       const message = error?.message || "Failed to submit request";
@@ -214,101 +211,47 @@ function SocietyOnboard() {
                   College code: {college.uniqueCode}
                 </p>
               </div>
-            ) : formData.collegeCode && !inviteData ? (
-              <p className="mb-4 text-xs text-slate-500">
-                Entered code: {formData.collegeCode}. If this is incorrect, please check with your
-                admin.
-              </p>
             ) : null}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-300">Society name</label>
-                <Input
-                  value={formData.name}
-                  onChange={handleChange("name")}
-                  placeholder="e.g. Robotics Club"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-300">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={handleChange("category")}
-                  className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500"
-                >
-                  <option value="TECH">Tech</option>
-                  <option value="NON_TECH">Non-tech</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-300">
-                  Profile photo / logo URL (optional)
-                </label>
-                <Input
-                  value={formData.logoUrl}
-                  onChange={handleChange("logoUrl")}
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-300">
-                  Faculty name (optional)
-                </label>
-                <Input
-                  value={formData.facultyName}
-                  onChange={handleChange("facultyName")}
-                  placeholder="Faculty coordinator name"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-300">
-                  Faculty coordinator email (optional)
-                </label>
-                <Input
-                  type="email"
-                  value={formData.facultyEmail}
-                  onChange={handleChange("facultyEmail")}
-                  placeholder="faculty@college.edu"
-                />
-                <p className="text-[11px] text-slate-500">
-                  If the faculty has already signed up, enter their platform email to grant them
-                  society management rights.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-300">
-                  President name (optional)
-                </label>
-                <Input
-                  value={formData.presidentName}
-                  onChange={handleChange("presidentName")}
-                  placeholder="Student president name"
-                />
-              </div>
               {!inviteData && (
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-300">Society contact email</label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange("email")}
-                    placeholder="official-society@college.edu"
-                    required
-                  />
-                </div>
-              )}
-              {!inviteData && (
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-300">College unique code</label>
-                  <Input
-                    value={formData.collegeCode}
-                    onChange={handleChange("collegeCode")}
-                    placeholder="e.g. ABC123"
-                    className="font-mono"
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-300">Society name</label>
+                    <Input
+                      value={formData.name}
+                      onChange={handleChange("name")}
+                      placeholder="e.g. Robotics Club"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-300">Category</label>
+                    <select
+                      value={formData.category}
+                      onChange={handleChange("category")}
+                      className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500"
+                    >
+                      <option value="TECH">Tech</option>
+                      <option value="NON_TECH">Non-tech</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-300">
+                      Faculty coordinator email
+                    </label>
+                    <Input
+                      type="email"
+                      value={formData.facultyEmail}
+                      onChange={handleChange("facultyEmail")}
+                      placeholder="faculty@college.edu"
+                      required
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      This faculty will be invited to complete society registration after admin approval.
+                    </p>
+                  </div>
+                </>
               )}
               <div className="flex justify-end">
                 <Button

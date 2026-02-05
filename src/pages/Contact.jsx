@@ -15,7 +15,7 @@ function Contact() {
               Contact us
             </h1>
             <p className="mt-3 max-w-xl text-sm text-slate-400 md:text-base">
-              Have questions about Cozen Societies or want to onboard your institution?
+              Have questions about SocietySync or want to onboard your institution?
               Reach out and we&apos;ll get back to you.
             </p>
           </div>
@@ -67,7 +67,7 @@ function Contact() {
                 <p className="text-xs uppercase tracking-wide text-slate-500">
                   Email
                 </p>
-                <p className="text-sm">contact@cozensocieties.com</p>
+                <p className="text-sm">contact@societysync.com</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-500">

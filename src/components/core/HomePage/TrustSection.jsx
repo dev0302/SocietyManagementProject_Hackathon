@@ -45,7 +45,7 @@ function TrustSection() {
               </span>
             </h2>
             <p className="text-sm leading-relaxed text-slate-400 md:text-[15px]">
-              Cozen replaces scattered spreadsheets, WhatsApp threads, and ad‑hoc Google
+              SocietySync replaces scattered spreadsheets, WhatsApp threads, and ad‑hoc Google
               Forms with a single coherent workflow for approvals, recruitment, and
               certificates&mdash;without taking control away from faculty and society
               cores.

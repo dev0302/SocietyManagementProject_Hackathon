@@ -2,6 +2,7 @@ import { Router } from "express";
 import { auth } from "../middlewares/auth.js";
 import { isCore } from "../middlewares/roles.js";
 import {
+  getMySociety,
   handleMemberDecision,
   handleMemberRoleChange,
   getDepartmentsSummary,
@@ -15,6 +16,7 @@ const router = Router();
 // All core-specific helper APIs
 router.use(auth, isCore);
 
+router.get("/my-society", getMySociety);
 router.post("/members/decision", handleMemberDecision);
 router.post("/members/role", handleMemberRoleChange);
 router.get("/departments", listDepartments);

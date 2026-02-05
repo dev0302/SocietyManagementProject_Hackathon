@@ -2,12 +2,13 @@ import otpGenerator from "otp-generator";
 import OTP from "../models/OTP.js";
 import User from "../models/User.js";
 import PlatformConfig from "../models/PlatformConfig.js";
+import StudentConfig from "../models/StudentConfig.js";
 import mailSender from "../utils/mailSender.js";
 import { emailVerificationTemplate } from "../mail/templates/emailVerificationTemplate.js";
 
 export const sendOTP = async (req, res) => {
   try {
-    const { email, accountType } = req.body;
+    const { email, accountType, studentType } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -50,6 +51,29 @@ export const sendOTP = async (req, res) => {
       }
     }
 
+    // Eligibility guard for CORE student signups:
+    // only allow OTP if email is present in at least one StudentConfig.coreEmails
+    if (normalizedType === "student") {
+      const normalizedStudentType =
+        typeof studentType === "string" ? studentType.trim().toUpperCase() : "MEMBER";
+
+      if (normalizedStudentType === "CORE") {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const hasCoreWhitelist = await StudentConfig.exists({
+          coreEmails: normalizedEmail,
+        });
+
+        if (!hasCoreWhitelist) {
+          return res.status(403).json({
+            success: false,
+            message:
+              "This email is not approved as a Core member. Please contact your faculty/society coordinator.",
+          });
+        }
+      }
+    }
+
     // Generate OTP
     let otp;
     let otpBody;
@@ -85,7 +109,7 @@ export const sendOTP = async (req, res) => {
     try {
       await mailSender(
         email,
-        "Email Verification - Cozen Societies",
+        "Email Verification - SocietySync",
         emailVerificationTemplate(otp)
       );
     } catch (emailError) {

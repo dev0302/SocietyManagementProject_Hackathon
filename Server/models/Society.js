@@ -48,6 +48,11 @@ const societySchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    registrationStatus: {
+      type: String,
+      enum: ["PENDING", "REGISTERED"],
+      default: "PENDING",
+    },
     isActive: {
       type: Boolean,
       default: true,

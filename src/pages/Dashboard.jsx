@@ -25,6 +25,7 @@ import {
   createMemberInviteLink,
   createMemberInviteByEmail,
 } from "@/services/operations/headAPI";
+import { getMySociety } from "@/services/operations/coreAPI";
 import Input from "@/components/ui/input";
 
 function Dashboard() {
@@ -32,6 +33,7 @@ function Dashboard() {
   const { user } = useSelector((state) => state.auth);
   const [coreAnnouncements, setCoreAnnouncements] = useState([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [coreSociety, setCoreSociety] = useState(null);
   const [college, setCollege] = useState(null);
   const [loadingCollege, setLoadingCollege] = useState(false);
 
@@ -70,6 +72,24 @@ function Dashboard() {
     };
 
     loadAnnouncements();
+  }, [user.role]);
+
+  useEffect(() => {
+    const loadCoreSociety = async () => {
+      if (user.role !== ROLES.CORE) return;
+      try {
+        const res = await getMySociety();
+        if (res?.success && res?.data) {
+          setCoreSociety(res.data);
+        } else {
+          setCoreSociety(null);
+        }
+      } catch {
+        setCoreSociety(null);
+      }
+    };
+
+    loadCoreSociety();
   }, [user.role]);
 
   useEffect(() => {
@@ -220,6 +240,34 @@ function Dashboard() {
             transition={{ duration: 0.25 }}
             className="grid gap-5 lg:grid-cols-[1.3fr,1.1fr]"
           >
+            {coreSociety && (
+              <Card className="bg-slate-900/60 border-slate-800">
+                <CardContent className="flex items-center gap-3 py-4">
+                  {coreSociety.logoUrl && (
+                    <img
+                      src={coreSociety.logoUrl}
+                      alt={coreSociety.name}
+                      className="h-12 w-12 rounded-lg border border-slate-800 object-cover"
+                    />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-slate-100">
+                      You are Core of <span className="text-sky-300">{coreSociety.name}</span>
+                    </p>
+                    {coreSociety.category && (
+                      <p className="text-xs text-slate-400">{coreSociety.category}</p>
+                    )}
+                  </div>
+                  <Link
+                    to={`/society/${coreSociety._id}`}
+                    state={coreSociety}
+                    className="ml-auto text-xs text-sky-400 hover:text-sky-300"
+                  >
+                    View society →
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
             <div className="space-y-5">
               <Card>
                 <CardHeader>

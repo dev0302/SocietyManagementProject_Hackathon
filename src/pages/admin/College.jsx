@@ -24,6 +24,7 @@ import {
   approveSocietyRequest,
   rejectSocietyRequest,
   createSocietyInviteLink,
+  uploadCollegeProfileImage,
 } from "@/services/operations/collegeAPI";
 import { sendOTP } from "@/services/operations/otpAPI";
 import { createEvent } from "@/services/operations/eventAPI";
@@ -76,6 +77,10 @@ function College() {
     participants: [{ email: "", role: "Participant" }],
   });
   const [submittingEvent, setSubmittingEvent] = useState(false);
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+
+  const pendingRequestCount = requests.length;
+  const hasPendingRequests = pendingRequestCount > 0;
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -344,6 +349,29 @@ function College() {
     }
   };
 
+  const handleProfileImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingProfileImage(true);
+    try {
+      const response = await uploadCollegeProfileImage(file);
+      if (response.success && response.data?.imageUrl) {
+        setFormData((prev) => ({
+          ...prev,
+          profileImageUrl: response.data.imageUrl,
+        }));
+        toast.success("Profile image uploaded");
+      } else {
+        throw new Error(response.message || "Failed to upload image");
+      }
+    } catch (error) {
+      const message = error?.message || "Failed to upload image";
+      toast.error(message);
+    } finally {
+      setUploadingProfileImage(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.otp) {
@@ -547,9 +575,19 @@ function College() {
                   setShowAddSociety(false);
                   setShowProfileEditor(false);
                 }}
+                className={
+                  hasPendingRequests
+                    ? "border-sky-500/70 shadow-[0_0_0_1px_rgba(56,189,248,0.55)] shadow-sky-500/40 bg-slate-900/70"
+                    : ""
+                }
               >
                 <ListChecks className="mr-1 h-4 w-4" />
-                Pending requests
+                <span>Pending requests</span>
+                {hasPendingRequests && (
+                  <span className="ml-1 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-sky-500/20 px-1 text-[11px] font-semibold text-sky-300">
+                    {pendingRequestCount}
+                  </span>
+                )}
               </Button>
             </div>
           )}
@@ -921,12 +959,32 @@ function College() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-slate-300">Profile image URL</label>
-                    <Input
-                      value={formData.profileImageUrl}
-                      onChange={handleChange("profileImageUrl")}
-                      placeholder="https://..."
-                    />
+                    <label className="text-xs font-medium text-slate-300">
+                      College logo
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {formData.profileImageUrl && (
+                        <img
+                          src={formData.profileImageUrl}
+                          alt="College logo"
+                          className="h-12 w-12 rounded-md border border-slate-800 object-cover"
+                        />
+                      )}
+                      <div className="space-y-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfileImageUpload}
+                          className="text-xs text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-sky-600/80 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-50 hover:file:bg-sky-500"
+                        />
+                        {uploadingProfileImage && (
+                          <p className="text-[11px] text-slate-500">Uploading image…</p>
+                        )}
+                        <p className="text-[11px] text-slate-500">
+                          Upload a square logo for the college (JPG, PNG, WebP).
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-slate-300">Telephone number</label>
@@ -940,19 +998,20 @@ function College() {
                     <label className="text-xs font-medium text-slate-300">
                       OTP sent to college email
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Input
                         value={formData.otp}
                         onChange={handleChange("otp")}
                         placeholder="Enter OTP"
+                        className="sm:flex-1"
                       />
                       <Button
                         type="button"
-                        variant="outline"
                         onClick={handleSendOtp}
                         disabled={sendingOtp}
+                        className="whitespace-nowrap bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-sm shadow-sky-500/30 hover:shadow-sky-500/50"
                       >
-                        {sendingOtp ? "Sending..." : "Send OTP"}
+                        {sendingOtp ? "Sending…" : "Send OTP"}
                       </Button>
                     </div>
                   </div>
@@ -1094,11 +1153,6 @@ function College() {
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <p className="text-sm font-medium text-slate-100">{r.name}</p>
-                              <p className="text-xs text-slate-400">{r.email}</p>
-                              <p className="mt-1 text-[11px] text-slate-500">
-                                {r.facultyName && `Faculty: ${r.facultyName} `}
-                                {r.presidentName && `| President: ${r.presidentName}`}
-                              </p>
                               {r.facultyEmail && (
                                 <p className="mt-0.5 text-[11px] text-sky-400">
                                   Faculty coordinator: {r.facultyEmail}

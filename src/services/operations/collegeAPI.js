@@ -18,6 +18,22 @@ export const upsertMyCollege = async (data) => {
   }
 };
 
+export const uploadCollegeProfileImage = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("profileImage", file);
+
+    const response = await apiConnector.post("/api/college/me/profile-image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const getCollegeByCode = async (code) => {
   try {
     const response = await apiConnector.get(`/api/college/code/${encodeURIComponent(code)}`);

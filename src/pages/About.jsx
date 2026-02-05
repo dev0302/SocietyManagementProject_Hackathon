@@ -47,7 +47,7 @@ const socialHandles = [
   },
   {
     name: "Email",
-    href: "mailto:contact@cozensocieties.com",
+    href: "mailto:contact@societysync.com",
     icon: Mail,
     color: "hover:text-amber-400 hover:bg-amber-500/10",
   },
@@ -82,7 +82,7 @@ function About() {
               <h1 className="text-4xl font-bold tracking-tight text-slate-50 md:text-5xl">
                 About{" "}
                 <span className="bg-gradient-to-r from-sky-400 via-cyan-400 to-teal-400 bg-clip-text text-transparent">
-                  Cozen Societies
+                  SocietySync
                 </span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-400">

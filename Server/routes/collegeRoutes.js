@@ -20,6 +20,7 @@ import {
   createSocietyInviteLink,
   getSocietyInviteByToken,
   createSocietyFromInvite,
+  uploadCollegeProfileImage,
 } from "../controllers/collegeController.js";
 
 const router = Router();
@@ -27,6 +28,7 @@ const router = Router();
 // Admin college management
 router.get("/me", auth, isAdmin, getMyCollege);
 router.post("/me", auth, isAdmin, upsertMyCollege);
+router.post("/me/profile-image", auth, isAdmin, uploadCollegeProfileImage);
 
 // Public endpoints for society onboarding via unique code
 router.get("/code/:code", getCollegeByCode);

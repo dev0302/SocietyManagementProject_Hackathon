@@ -211,6 +211,32 @@ export const handleMemberRoleChange = async (req, res) => {
   }
 };
 
+// Get the society the current core user belongs to (from their active membership).
+export const getMySociety = async (req, res) => {
+  try {
+    const membership = await Membership.findOne({
+      student: req.user.id,
+      isActive: true,
+    })
+      .populate("society", "name category logoUrl _id")
+      .lean();
+
+    if (!membership?.society) {
+      return res.status(200).json({ success: true, data: null });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: membership.society,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch society.",
+    });
+  }
+};
+
 // Same as listDepartments: returns real departments and heads for the core user.
 export const getDepartmentsSummary = async (req, res) => {
   try {

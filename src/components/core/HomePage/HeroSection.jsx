@@ -57,7 +57,7 @@ function HeroSection() {
               transition={{ duration: 0.45, delay: 0.15 }}
               className="max-w-xl text-sm leading-relaxed text-slate-300 md:text-[15px]"
             >
-              Cozen gives admins, faculty, and society cores a single place to run
+              SocietySync gives admins, faculty, and society cores a single place to run
               recruitment, memberships, and certificates&mdash;with strict roles,
               invitations, and a full audit trail instead of scattered forms and chats.
             </motion.p>

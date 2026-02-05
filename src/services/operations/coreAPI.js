@@ -1,5 +1,14 @@
 import apiConnector from "../api.js";
 
+export const getMySociety = async () => {
+  try {
+    const response = await apiConnector.get("/api/core/my-society");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const logMemberDecision = async (data) => {
   try {
     const response = await apiConnector.post("/api/core/members/decision", data);

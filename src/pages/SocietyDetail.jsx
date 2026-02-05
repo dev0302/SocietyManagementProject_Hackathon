@@ -16,6 +16,9 @@ import {
   uploadSocietyStudentsExcel,
   getSocietyMembers,
   exportSocietyMembersExcel,
+  uploadSocietyLogo,
+  getStudentConfig,
+  updateStudentConfig,
 } from "@/services/operations/societyAPI";
 import { ROLES } from "@/config/roles";
 import { Trash2, Pencil, Upload, Download, Users, FileSpreadsheet } from "lucide-react";
@@ -55,6 +58,11 @@ function SocietyDetail() {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showMemberDetails, setShowMemberDetails] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const [studentConfig, setStudentConfig] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [coreEmailInput, setCoreEmailInput] = useState("");
 
   const handleEditClick = () => {
     setEditForm({
@@ -63,9 +71,12 @@ function SocietyDetail() {
       logoUrl: society?.logoUrl || "",
       category: society?.category || "TECH",
       facultyName: society?.facultyName || "",
-      presidentName: society?.presidentName || "",
+      // presidentEmail comes from separate student configuration
+      presidentEmail: studentConfig?.presidentEmail || "",
+      coreEmails: studentConfig?.coreEmails || [],
       contactEmail: society?.contactEmail || "",
     });
+    setCoreEmailInput("");
     setShowEditForm(true);
   };
 
@@ -74,18 +85,52 @@ function SocietyDetail() {
     if (!societyId) return;
     setSaving(true);
     try {
-      const res = await updateSociety(societyId, editForm);
-      if (res?.success && res?.data) {
-        toast.success("Society updated successfully.");
-        setSociety(res.data);
-        setShowEditForm(false);
-      } else {
-        toast.error(res?.message || "Failed to update society.");
+      const { presidentEmail, coreEmails, ...societyPayload } = editForm;
+
+      const res = await updateSociety(societyId, societyPayload);
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.message || "Failed to update society.");
       }
+
+      // Update student configuration (president + core emails)
+      if (presidentEmail || (Array.isArray(coreEmails) && coreEmails.length > 0)) {
+        const cfgRes = await updateStudentConfig(societyId, {
+          presidentEmail,
+          coreEmails,
+        });
+        if (!cfgRes?.success) {
+          throw new Error(cfgRes?.message || "Failed to update student config.");
+        }
+        setStudentConfig(cfgRes.data);
+      }
+
+      toast.success("Society updated successfully.");
+      setSociety(res.data);
+      setShowEditForm(false);
     } catch (err) {
       toast.error(err?.message || "Failed to update society.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !societyId) return;
+    setUploadingLogo(true);
+    try {
+      const res = await uploadSocietyLogo(societyId, file);
+      if (res?.success && res?.data?.imageUrl) {
+        setEditForm((p) => ({ ...p, logoUrl: res.data.imageUrl }));
+        setSociety((prev) => (prev ? { ...prev, logoUrl: res.data.imageUrl } : prev));
+        toast.success("Logo uploaded.");
+      } else {
+        throw new Error(res?.message || "Failed to upload logo.");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to upload logo.");
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -142,6 +187,26 @@ function SocietyDetail() {
     };
     load();
   }, [societyId, canManageStudents]);
+
+  useEffect(() => {
+    if (!societyId || (!canEdit && !canManageStudents)) return;
+    const loadConfig = async () => {
+      setLoadingConfig(true);
+      try {
+        const res = await getStudentConfig(societyId);
+        if (res.success) {
+          setStudentConfig(res.data);
+        } else {
+          setStudentConfig(null);
+        }
+      } catch {
+        setStudentConfig(null);
+      } finally {
+        setLoadingConfig(false);
+      }
+    };
+    loadConfig();
+  }, [societyId, canEdit, canManageStudents]);
 
   useEffect(() => {
     if (!societyId || !canManageStudents) return;
@@ -235,11 +300,24 @@ function SocietyDetail() {
                   )}
                   <div className="flex-1">
                     <CardTitle className="text-xl">{society.name}</CardTitle>
-                    {society.category && (
-                      <CardDescription className="mt-1">
-                        {society.category}
-                      </CardDescription>
-                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      {society.category && (
+                        <CardDescription>{society.category}</CardDescription>
+                      )}
+                      {society.registrationStatus && (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            society.registrationStatus === "REGISTERED"
+                              ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/40"
+                              : "bg-amber-500/10 text-amber-300 border border-amber-500/40"
+                          }`}
+                        >
+                          {society.registrationStatus === "REGISTERED"
+                            ? "Registered"
+                            : "Registration pending"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {canEdit && (
@@ -280,13 +358,13 @@ function SocietyDetail() {
                     <p>{society.contactEmail}</p>
                   </div>
                 )}
-                {(society.facultyName || society.presidentName) && (
+                {(society.facultyName || studentConfig?.presidentEmail) && (
                   <div>
                     <p className="mb-1 font-medium text-slate-200">Leadership</p>
                     <p>
                       {society.facultyName && `Faculty: ${society.facultyName}`}
-                      {society.facultyName && society.presidentName && " • "}
-                      {society.presidentName && `President: ${society.presidentName}`}
+                      {society.facultyName && studentConfig?.presidentEmail && " • "}
+                      {studentConfig?.presidentEmail && `President email: ${studentConfig.presidentEmail}`}
                     </p>
                   </div>
                 )}
@@ -511,11 +589,30 @@ function SocietyDetail() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs text-slate-400">Logo URL</label>
-                        <Input
-                          value={editForm.logoUrl}
-                          onChange={(e) => setEditForm((p) => ({ ...p, logoUrl: e.target.value }))}
-                        />
+                        <label className="text-xs text-slate-400">Society logo</label>
+                        <div className="flex items-center gap-3">
+                          {editForm.logoUrl && (
+                            <img
+                              src={editForm.logoUrl}
+                              alt={editForm.name || "Society logo"}
+                              className="h-10 w-10 rounded-md border border-slate-800 object-cover"
+                            />
+                          )}
+                          <div className="space-y-1">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoUpload}
+                              className="text-xs text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-sky-600/80 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-50 hover:file:bg-sky-500"
+                            />
+                            {uploadingLogo && (
+                              <p className="text-[11px] text-slate-500">Uploading logo…</p>
+                            )}
+                            <p className="text-[11px] text-slate-500">
+                              Upload a square logo for the society (JPG, PNG, WebP).
+                            </p>
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-slate-400">Category</label>
@@ -537,11 +634,79 @@ function SocietyDetail() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs text-slate-400">President name</label>
+                          <label className="text-xs text-slate-400">President email</label>
                           <Input
-                            value={editForm.presidentName}
-                            onChange={(e) => setEditForm((p) => ({ ...p, presidentName: e.target.value }))}
+                            type="email"
+                            value={editForm.presidentEmail || ""}
+                            onChange={(e) =>
+                              setEditForm((p) => ({ ...p, presidentEmail: e.target.value }))
+                            }
                           />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs text-slate-400">
+                            Core student emails (add/remove)
+                          </label>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.isArray(editForm.coreEmails) &&
+                            editForm.coreEmails.map((email) => (
+                              <span
+                                key={email}
+                                className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200"
+                              >
+                                {email}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setEditForm((p) => ({
+                                      ...p,
+                                      coreEmails: (p.coreEmails || []).filter((e) => e !== email),
+                                    }))
+                                  }
+                                  className="ml-1 text-slate-400 hover:text-red-400"
+                                  aria-label={`Remove ${email}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Input
+                            type="email"
+                            placeholder="core-student@college.edu"
+                            value={coreEmailInput}
+                            onChange={(e) => setCoreEmailInput(e.target.value)}
+                            className="min-w-[220px] flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const email = coreEmailInput.trim().toLowerCase();
+                              if (!email) {
+                                toast.error("Enter a core student email.");
+                                return;
+                              }
+                              setEditForm((p) => {
+                                const existing = Array.isArray(p.coreEmails)
+                                  ? p.coreEmails
+                                  : [];
+                                if (existing.includes(email)) return p;
+                                return {
+                                  ...p,
+                                  coreEmails: [...existing, email],
+                                };
+                              });
+                              setCoreEmailInput("");
+                            }}
+                          >
+                            Add core email
+                          </Button>
                         </div>
                       </div>
                       <div className="space-y-1">

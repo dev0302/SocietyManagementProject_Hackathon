@@ -6,7 +6,7 @@ function Footer() {
     <footer className="border-t border-slate-800/50 bg-slate-950">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row">
         <div className="text-sm text-slate-400">
-          © {new Date().getFullYear()} Cozen Society Platform. All rights reserved.
+          © {new Date().getFullYear()} SocietySync Platform. All rights reserved.
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
           <Link to="/about" className="transition-colors hover:text-sky-400">About</Link>

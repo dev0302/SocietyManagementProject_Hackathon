@@ -94,7 +94,7 @@ function Navbar() {
           </div>
           <div className="leading-tight">
             <div className="text-sm font-bold tracking-tight text-slate-50 sm:text-base">
-              Cozen Societies
+              SocietySync
             </div>
             <div className="text-[10px] text-slate-400">
               Institution-wide platform
@@ -271,7 +271,7 @@ function Navbar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 text-slate-950">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="text-sm font-bold text-slate-50">Cozen</span>
+            <span className="text-sm font-bold text-slate-50">SocietySync</span>
           </div>
           <button
             onClick={() => setOpen(false)}

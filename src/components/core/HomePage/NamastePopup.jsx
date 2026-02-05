@@ -71,7 +71,7 @@ function NamastePopup() {
                   transition={{ delay: 0.35 }}
                   className="mt-2 text-slate-400"
                 >
-                  Welcome to Cozen Societies. We're glad you're here.
+                  Welcome to SocietySync. We're glad you're here.
                 </motion.p>
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}

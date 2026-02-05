@@ -2,8 +2,10 @@ import Society from "../models/Society.js";
 import Department from "../models/Department.js";
 import Invite from "../models/Invite.js";
 import Membership from "../models/Membership.js";
+import StudentConfig from "../models/StudentConfig.js";
 import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
+import { uploadImageToCloudinary } from "../utils/imageUploader.js";
 
 // Phase 1 – Faculty creates a society and becomes the coordinator (FACULTY).
 
@@ -83,6 +85,17 @@ export const updateSociety = async (req, res) => {
     if (presidentName !== undefined) society.presidentName = presidentName?.trim() || "";
     if (contactEmail !== undefined) society.contactEmail = contactEmail?.toLowerCase().trim() || "";
 
+    // Auto-mark registration as complete when key fields are filled
+    if (
+      society.registrationStatus !== "REGISTERED" &&
+      society.name &&
+      society.contactEmail &&
+      society.logoUrl &&
+      society.presidentName
+    ) {
+      society.registrationStatus = "REGISTERED";
+    }
+
     await society.save();
 
     await createAuditLog({
@@ -103,6 +116,192 @@ export const updateSociety = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update society.",
+    });
+  }
+};
+
+// Faculty uploads / updates society logo via Cloudinary.
+// Also persists the logoUrl on the Society document.
+export const uploadSocietyLogo = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const facultyId = req.user.id;
+
+    const society = await Society.findById(societyId);
+    if (!society) {
+      return res.status(404).json({
+        success: false,
+        message: "Society not found.",
+      });
+    }
+
+    if (String(society.facultyCoordinator) !== String(facultyId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to update this society logo.",
+      });
+    }
+
+    if (!req.files || !req.files.logo) {
+      return res.status(400).json({
+        success: false,
+        message: "No logo file uploaded.",
+      });
+    }
+
+    const file = req.files.logo;
+
+    const uploadResponse = await uploadImageToCloudinary(
+      file,
+      process.env.CLOUDINARY_SOCIETY_FOLDER || "societysync/societies",
+      80,
+    );
+
+    society.logoUrl = uploadResponse.secure_url;
+    await society.save();
+
+    await createAuditLog({
+      actorId: facultyId,
+      actorRole: req.user.role,
+      action: "SOCIETY_LOGO_UPLOADED",
+      targetModel: "Society",
+      targetId: String(society._id),
+      metadata: { imageUrl: uploadResponse.secure_url },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Society logo uploaded successfully.",
+      data: {
+        imageUrl: uploadResponse.secure_url,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload society logo.",
+    });
+  }
+};
+
+// Get or create student configuration (president email + core emails) for a society.
+export const getStudentConfig = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const userId = req.user.id;
+
+    const society = await Society.findById(societyId);
+    if (!society) {
+      return res.status(404).json({
+        success: false,
+        message: "Society not found.",
+      });
+    }
+
+    const isAdmin = req.user.role === ROLES.ADMIN;
+    const isFacultyCoordinator =
+      req.user.role === ROLES.FACULTY &&
+      String(society.facultyCoordinator) === String(userId);
+
+    if (!isAdmin && !isFacultyCoordinator) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to view this configuration.",
+      });
+    }
+
+    let config = await StudentConfig.findOne({ society: societyId });
+    if (!config) {
+      config = await StudentConfig.create({
+        society: societyId,
+        presidentEmail: "",
+        coreEmails: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: config,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch student configuration.",
+    });
+  }
+};
+
+// Update student configuration: president email + list of core student emails.
+export const updateStudentConfig = async (req, res) => {
+  try {
+    const { societyId } = req.params;
+    const userId = req.user.id;
+    const { presidentEmail, coreEmails } = req.body;
+
+    const society = await Society.findById(societyId);
+    if (!society) {
+      return res.status(404).json({
+        success: false,
+        message: "Society not found.",
+      });
+    }
+
+    const isAdmin = req.user.role === ROLES.ADMIN;
+    const isFacultyCoordinator =
+      req.user.role === ROLES.FACULTY &&
+      String(society.facultyCoordinator) === String(userId);
+
+    if (!isAdmin && !isFacultyCoordinator) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to update this configuration.",
+      });
+    }
+
+    const normalizedPresident = presidentEmail
+      ? String(presidentEmail).trim().toLowerCase()
+      : "";
+
+    let normalizedCoreEmails = Array.isArray(coreEmails) ? coreEmails : [];
+    normalizedCoreEmails = Array.from(
+      new Set(
+        normalizedCoreEmails
+          .map((v) => String(v).trim().toLowerCase())
+          .filter((v) => !!v),
+      ),
+    );
+
+    const config = await StudentConfig.findOneAndUpdate(
+      { society: societyId },
+      {
+        presidentEmail: normalizedPresident,
+        coreEmails: normalizedCoreEmails,
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      },
+    );
+
+    await createAuditLog({
+      actorId: userId,
+      actorRole: req.user.role,
+      action: "STUDENT_CONFIG_UPDATED",
+      targetModel: "StudentConfig",
+      targetId: String(config._id),
+      metadata: { societyId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Student configuration updated.",
+      data: config,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update student configuration.",
     });
   }
 };

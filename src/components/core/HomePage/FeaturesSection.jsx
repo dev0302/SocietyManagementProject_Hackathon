@@ -106,13 +106,13 @@ function FeaturesSection() {
         >
           <div className="max-w-md space-y-3">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-50 md:text-3xl">
-              How Cozen fits into{" "}
+              How SocietySync fits into{" "}
               <span className="bg-gradient-to-r from-sky-400 to-cyan-400 bg-clip-text text-transparent">
                 your campus
               </span>
             </h2>
             <p className="text-sm leading-relaxed text-slate-400">
-              Think of Cozen as rails, not a replacement. It keeps every step of the
+              Think of SocietySync as rails, not a replacement. It keeps every step of the
               societies lifecycle consistent&mdash;from recruitment to certificates&mdash;while
               letting each college preserve its own rules.
             </p>

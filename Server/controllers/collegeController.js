@@ -5,8 +5,11 @@ import Society from "../models/Society.js";
 import SocietyRequest from "../models/SocietyRequest.js";
 import SocietyInviteLink from "../models/SocietyInviteLink.js";
 import User from "../models/User.js";
+import PlatformConfig from "../models/PlatformConfig.js";
 import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
+import mailSender from "../utils/mailSender.js";
+import { uploadImageToCloudinary } from "../utils/imageUploader.js";
 
 // Helper to generate a unique college code: 3 letters + 3 digits, e.g., ABC123
 const generateCollegeCode = () => {
@@ -122,6 +125,55 @@ export const upsertMyCollege = async (req, res) => {
   }
 };
 
+// Admin uploads / updates the college profile image (logo) via Cloudinary.
+// Returns the hosted URL so the client can store it in profileImageUrl.
+export const uploadCollegeProfileImage = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+
+    if (!req.files || !req.files.profileImage) {
+      return res.status(400).json({
+        success: false,
+        message: "No profile image file uploaded.",
+      });
+    }
+
+    const file = req.files.profileImage;
+
+    const uploadResponse = await uploadImageToCloudinary(
+      file,
+      process.env.CLOUDINARY_COLLEGE_FOLDER || "societysync/colleges",
+      80,
+    );
+
+    // Optionally, we could persist this immediately to the College document
+    // if it already exists, but primary contract is to return a URL the client
+    // can include in the upsert call.
+
+    await createAuditLog({
+      actorId: adminId,
+      actorRole: req.user.role,
+      action: "COLLEGE_PROFILE_IMAGE_UPLOADED",
+      targetModel: "College",
+      targetId: "", // we may not have a college yet on first setup
+      metadata: { imageUrl: uploadResponse.secure_url },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile image uploaded successfully.",
+      data: {
+        imageUrl: uploadResponse.secure_url,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload profile image.",
+    });
+  }
+};
+
 // Get the college associated with the current admin.
 export const getMyCollege = async (req, res) => {
   try {
@@ -177,12 +229,12 @@ export const getCollegeByCode = async (req, res) => {
 // Public: society submits a request to join a college using the unique code.
 export const createSocietyRequest = async (req, res) => {
   try {
-    const { name, category, logoUrl, facultyName, presidentName, email, facultyEmail, collegeCode } = req.body;
+    const { name, category, facultyEmail, collegeCode } = req.body;
 
-    if (!name || !email || !collegeCode || !category) {
+    if (!name || !facultyEmail || !collegeCode || !category) {
       return res.status(400).json({
         success: false,
-        message: "Name, category, email and college code are required.",
+        message: "Name, category, faculty email and college code are required.",
       });
     }
 
@@ -195,14 +247,13 @@ export const createSocietyRequest = async (req, res) => {
       });
     }
 
+    const normalizedFacultyEmail = facultyEmail.toLowerCase().trim();
+
     const request = await SocietyRequest.create({
       name: name.trim(),
       category: category === "NON_TECH" ? "NON_TECH" : "TECH",
-      logoUrl: logoUrl?.trim() || "",
-      facultyName: facultyName?.trim() || "",
-      presidentName: presidentName?.trim() || "",
-      email: email.toLowerCase().trim(),
-      facultyEmail: facultyEmail?.toLowerCase().trim() || "",
+      facultyEmail: normalizedFacultyEmail,
+      email: normalizedFacultyEmail,
       college: college._id,
       collegeCode: normalizedCode,
     });
@@ -482,10 +533,17 @@ export const approveSocietyRequest = async (req, res) => {
       });
     }
 
+    const normalizedFacultyEmail = request.facultyEmail
+      ? request.facultyEmail.toLowerCase().trim()
+      : null;
+
+    // If the faculty user already exists, assign them as coordinator immediately.
+    // Otherwise, temporarily keep the admin as coordinator until the faculty signs up,
+    // at which point we reassign based on the stored contactEmail.
     let facultyCoordinatorId = adminId;
-    if (request.facultyEmail) {
+    if (normalizedFacultyEmail) {
       const facultyUser = await User.findOne({
-        email: request.facultyEmail.toLowerCase(),
+        email: normalizedFacultyEmail,
         role: ROLES.FACULTY,
       });
       if (facultyUser) {
@@ -499,14 +557,50 @@ export const approveSocietyRequest = async (req, res) => {
       facultyCoordinator: facultyCoordinatorId,
       college: college._id,
       category: request.category,
-      logoUrl: request.logoUrl,
-      facultyName: request.facultyName,
-      presidentName: request.presidentName,
-      contactEmail: request.email,
+      logoUrl: "",
+      facultyName: "",
+      presidentName: "",
+      // Use faculty email as the primary contact so we can
+      // automatically attach the society when the faculty signs up.
+      contactEmail: normalizedFacultyEmail || "",
+      registrationStatus: "PENDING",
     });
 
     request.status = "APPROVED";
     await request.save();
+
+    // If faculty email was provided, ensure it is in PlatformConfig.facultyWhitelist
+    // and notify the faculty to sign up.
+    if (normalizedFacultyEmail) {
+      const config =
+        (await PlatformConfig.findOne()) ||
+        (await PlatformConfig.create({ adminEmails: [], facultyWhitelist: [] }));
+
+      if (!config.facultyWhitelist.includes(normalizedFacultyEmail)) {
+        config.facultyWhitelist.push(normalizedFacultyEmail);
+        await config.save();
+      }
+
+      const clientBase =
+        process.env.CLIENT_URL?.replace(/\/$/, "") || "http://localhost:5173";
+      const signupUrl = `${clientBase}/signup?role=faculty`;
+
+      const subject = "You have been added as faculty coordinator on SocietySync";
+      const body = `
+        <p>Dear Faculty,</p>
+        <p>You have been added as the faculty coordinator for the society <strong>${request.name}</strong> on the SocietySync platform.</p>
+        <p>Please complete your registration using your email <strong>${normalizedFacultyEmail}</strong> by signing up as <strong>Faculty</strong> here:</p>
+        <p><a href="${signupUrl}" target="_blank" rel="noopener noreferrer">${signupUrl}</a></p>
+        <p>Once you sign up, you can complete the society profile (logo, contact email, president details) from your dashboard.</p>
+        <p>Regards,<br/>SocietySync</p>
+      `;
+
+      try {
+        await mailSender(normalizedFacultyEmail, subject, body);
+      } catch {
+        // Swallow email errors; approval should still succeed.
+      }
+    }
 
     await createAuditLog({
       actorId: adminId,

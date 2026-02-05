@@ -9,7 +9,7 @@ const mailSender = async (email, title, body) => {
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
-          name: "Cozen Societies",
+          name: "SocietySync",
           email: process.env.SENDER_EMAIL,
         },
         to: [{ email: email }],

@@ -27,6 +27,7 @@ const societyRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
       lowercase: true,
+      required: true,
     },
     presidentName: {
       type: String,
@@ -34,7 +35,6 @@ const societyRequestSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
     },

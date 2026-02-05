@@ -99,3 +99,43 @@ export const uploadSocietyStudentsExcel = async (societyId, file) => {
     throw error.response?.data || error;
   }
 };
+
+export const uploadSocietyLogo = async (societyId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("logo", file);
+    const response = await apiConnector.post(
+      `/api/societies/${societyId}/logo`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStudentConfig = async (societyId) => {
+  try {
+    const response = await apiConnector.get(`/api/societies/${societyId}/student-config`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateStudentConfig = async (societyId, data) => {
+  try {
+    const response = await apiConnector.put(
+      `/api/societies/${societyId}/student-config`,
+      data,
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

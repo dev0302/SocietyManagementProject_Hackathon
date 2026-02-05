@@ -6,6 +6,8 @@ import OTP from "../models/OTP.js";
 import Invite from "../models/Invite.js";
 import Membership from "../models/Membership.js";
 import Department from "../models/Department.js";
+import Society from "../models/Society.js";
+import StudentConfig from "../models/StudentConfig.js";
 import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
 
@@ -165,7 +167,9 @@ export const registerFaculty = async (req, res) => {
     }
 
     const config = await PlatformConfig.findOne();
-    const allowedFaculty = (config?.facultyWhitelist || []).map((e) => String(e).trim().toLowerCase());
+    const allowedFaculty = (config?.facultyWhitelist || []).map((e) =>
+      String(e).trim().toLowerCase(),
+    );
     const normalizedEmail = email.trim().toLowerCase();
     const isAllowed = allowedFaculty.includes(normalizedEmail);
 
@@ -196,6 +200,14 @@ export const registerFaculty = async (req, res) => {
       password: hashedPassword,
       role: ROLES.FACULTY,
     });
+
+    // If there are societies that were approved using this faculty email
+    // (via society onboarding form), reassign them from the admin to this
+    // faculty so that they immediately appear in the faculty dashboard.
+    await Society.updateMany(
+      { contactEmail: normalizedEmail },
+      { facultyCoordinator: user._id },
+    );
 
     await createAuditLog({
       actorId: user._id,
@@ -280,21 +292,11 @@ export const registerStudent = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Allow student sub-roles to be set at signup (CORE/HEAD/MEMBER).
-    // If not provided, default to STUDENT for backward compatibility.
-    const allowedStudentRoles = new Set([
-      ROLES.STUDENT,
-      ROLES.CORE,
-      ROLES.HEAD,
-      ROLES.MEMBER,
-    ]);
-
-    const normalizedRole =
+    // Use role from signup: CORE, HEAD, or MEMBER. Default to STUDENT if invalid.
+    const allowedRoles = new Set([ROLES.CORE, ROLES.HEAD, ROLES.MEMBER]);
+    const requestedRole =
       typeof role === "string" ? role.trim().toUpperCase() : ROLES.STUDENT;
-
-    const finalRole = allowedStudentRoles.has(normalizedRole)
-      ? normalizedRole
-      : ROLES.STUDENT;
+    const finalRole = allowedRoles.has(requestedRole) ? requestedRole : ROLES.STUDENT;
 
     const user = await User.create({
       firstName,
@@ -303,6 +305,26 @@ export const registerStudent = async (req, res) => {
       password: hashedPassword,
       role: finalRole,
     });
+
+    // For CORE signup: user's email was already validated in coreEmails (OTP guard).
+    // Create Membership linking them to the first society where they're whitelisted.
+    if (finalRole === ROLES.CORE) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const configWithCore = await StudentConfig.findOne({
+        coreEmails: normalizedEmail,
+      })
+        .populate("society")
+        .lean();
+
+      if (configWithCore?.society) {
+        await Membership.create({
+          student: user._id,
+          society: configWithCore.society._id,
+          department: null,
+          role: ROLES.CORE,
+        });
+      }
+    }
 
     await createAuditLog({
       actorId: user._id,

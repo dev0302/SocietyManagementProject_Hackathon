@@ -21,7 +21,7 @@ function SignupForm({ role: initialRole = "student" }) {
       ? initialRole.toLowerCase()
       : "student"
   );
-  const [studentType, setStudentType] = useState("MEMBER"); // CORE | HEAD | MEMBER
+  const [studentType, setStudentType] = useState("MEMBER"); // CORE | HEAD | MEMBER (UI only)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -62,7 +62,11 @@ function SignupForm({ role: initialRole = "student" }) {
     setSendingOTP(true);
 
     try {
-      const response = await sendOTP(formData.email, accountType);
+      const response = await sendOTP(
+        formData.email,
+        accountType,
+        accountType === "student" ? studentType : undefined,
+      );
       if (response.success) {
         toast.success("OTP sent to your email. Please check your inbox.");
         setStep(2);
@@ -163,9 +167,8 @@ function SignupForm({ role: initialRole = "student" }) {
           {accountType === "student" && (
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-300">Student type</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: "PRESIDENT", label: "President" },
                   { key: "CORE", label: "Core" },
                   { key: "HEAD", label: "Head" },
                   { key: "MEMBER", label: "Member" },

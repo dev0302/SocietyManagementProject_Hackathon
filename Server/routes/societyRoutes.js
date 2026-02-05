@@ -5,6 +5,9 @@ import {
   createDepartment,
   createInvite,
   acceptInvite,
+  uploadSocietyLogo,
+  getStudentConfig,
+  updateStudentConfig,
 } from "../controllers/societyController.js";
 import {
   getSocietyStudents,
@@ -27,6 +30,9 @@ router.post("/", auth, isFaculty, createSociety);
 
 // Faculty updates their society (where they are coordinator)
 router.patch("/:societyId", auth, isFaculty, updateSociety);
+
+// Faculty uploads society logo (Cloudinary)
+router.post("/:societyId/logo", auth, isFaculty, uploadSocietyLogo);
 
 // Society enrolled members (faculty coordinator or admin only)
 router.get(
@@ -59,6 +65,20 @@ router.post(
   auth,
   requireRoles([ROLES.ADMIN, ROLES.FACULTY]),
   addSocietyStudents,
+);
+
+// Student configuration (president email + core emails)
+router.get(
+  "/:societyId/student-config",
+  auth,
+  requireRoles([ROLES.ADMIN, ROLES.FACULTY]),
+  getStudentConfig,
+);
+router.put(
+  "/:societyId/student-config",
+  auth,
+  requireRoles([ROLES.ADMIN, ROLES.FACULTY]),
+  updateStudentConfig,
 );
 
 // Core creates departments within a society
