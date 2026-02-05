@@ -7,6 +7,7 @@ export const ROLES = {
   CORE: "CORE",
   HEAD: "HEAD",
   MEMBER: "MEMBER",
+  PRESIDENT: "PRESIDENT", // Society president (enrolled member role)
   STUDENT: "STUDENT",
 };
 
@@ -16,6 +17,7 @@ export const ROLE_HIERARCHY = [
   ROLES.CORE,
   ROLES.HEAD,
   ROLES.MEMBER,
+  ROLES.PRESIDENT,
   ROLES.STUDENT,
 ];
 

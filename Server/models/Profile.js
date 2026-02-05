@@ -41,6 +41,14 @@ const profileSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    branch: {
+      type: String,
+      trim: true,
+    },
+    sem: {
+      type: String,
+      trim: true,
+    },
     socials: {
       instagram: { type: String, trim: true },
       linkedin: { type: String, trim: true },

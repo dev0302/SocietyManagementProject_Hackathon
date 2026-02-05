@@ -4,6 +4,7 @@ import {
   getSocietyEvents,
   getEventById,
   getEventParticipants,
+  addEventParticipants,
   issueCertificate,
   createEventInvite,
   acceptEventInvite,
@@ -28,6 +29,9 @@ router.get("/:eventId", auth, getEventById);
 
 // Get participants for an event
 router.get("/:eventId/participants", auth, getEventParticipants);
+
+// Add participants to an existing event
+router.post("/:eventId/participants", auth, isFacultyOrCoreOrHead, addEventParticipants);
 
 // Issue certificate (serialNo) for a participant - faculty/core/head
 router.post("/certificates", auth, isFacultyOrCoreOrHead, issueCertificate);

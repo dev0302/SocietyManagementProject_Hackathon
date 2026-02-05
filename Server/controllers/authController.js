@@ -444,7 +444,7 @@ export const signupWithInvite = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRole =
-      [ROLES.HEAD, ROLES.CORE, ROLES.MEMBER].includes(invite.role)
+      [ROLES.HEAD, ROLES.CORE, ROLES.MEMBER, ROLES.PRESIDENT].includes(invite.role)
         ? invite.role
         : ROLES.STUDENT;
     const user = await User.create({

@@ -10,9 +10,15 @@ import PrivateRoute from "@/components/core/auth/PrivateRoute";
 import Input from "@/components/ui/input";
 import { getSocietyEvents } from "@/services/operations/eventAPI";
 import { deleteSociety } from "@/services/operations/collegeAPI";
-import { updateSociety } from "@/services/operations/societyAPI";
+import {
+  updateSociety,
+  getSocietyStudents,
+  uploadSocietyStudentsExcel,
+  getSocietyMembers,
+  exportSocietyMembersExcel,
+} from "@/services/operations/societyAPI";
 import { ROLES } from "@/config/roles";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, Upload, Download, Users, FileSpreadsheet } from "lucide-react";
 
 function SocietyDetail() {
   const { state } = useLocation();
@@ -37,6 +43,18 @@ function SocietyDetail() {
   const canDelete = user?.role === ROLES.ADMIN;
   const facultyCoordinatorId = society?.facultyCoordinator?._id || society?.facultyCoordinator;
   const canEdit = user?.role === ROLES.FACULTY && user?.id && String(facultyCoordinatorId) === String(user.id);
+  const canManageStudents =
+    (user?.role === ROLES.ADMIN || (user?.role === ROLES.FACULTY && user?.id && String(facultyCoordinatorId) === String(user.id)));
+
+  const [roster, setRoster] = useState([]);
+  const [loadingRoster, setLoadingRoster] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const [members, setMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [showMemberDetails, setShowMemberDetails] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const handleEditClick = () => {
     setEditForm({
@@ -108,6 +126,90 @@ function SocietyDetail() {
     };
     load();
   }, [societyId, eventFilter, eventCategory]);
+
+  useEffect(() => {
+    if (!societyId || !canManageStudents) return;
+    const load = async () => {
+      setLoadingRoster(true);
+      try {
+        const res = await getSocietyStudents(societyId);
+        if (res.success) setRoster(res.data || []);
+      } catch {
+        setRoster([]);
+      } finally {
+        setLoadingRoster(false);
+      }
+    };
+    load();
+  }, [societyId, canManageStudents]);
+
+  useEffect(() => {
+    if (!societyId || !canManageStudents) return;
+    const load = async () => {
+      setLoadingMembers(true);
+      try {
+        const res = await getSocietyMembers(societyId);
+        if (res.success) setMembers(res.data || []);
+      } catch {
+        setMembers([]);
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+    load();
+  }, [societyId, canManageStudents]);
+
+  const handleDownloadTemplate = () => {
+    const headers = ["name", "branch", "sem", "year", "department", "position"];
+    const csv = [headers.join(","), "John Doe,CSE,3,2,Technical,Member"].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "society_students_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadMembersExcel = async () => {
+    if (!societyId) return;
+    setExportingExcel(true);
+    try {
+      const response = await exportSocietyMembersExcel(societyId);
+      const blob = response?.data instanceof Blob ? response.data : new Blob([response?.data || ""]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `society_${(society?.name || "members").replace(/[^a-z0-9_-]/gi, "_")}_members.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel downloaded.");
+    } catch (err) {
+      toast.error(err?.message || "Failed to download Excel.");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExcelUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !societyId) return;
+    setUploadingExcel(true);
+    try {
+      const res = await uploadSocietyStudentsExcel(societyId, file);
+      if (res.success) {
+        setRoster(res.data || []);
+        toast.success(res.message || "Students uploaded.");
+      } else {
+        toast.error(res.message || "Upload failed.");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Upload failed.");
+    } finally {
+      setUploadingExcel(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   return (
     <PrivateRoute>
@@ -193,6 +295,142 @@ function SocietyDetail() {
                     <p className="text-[11px] font-medium text-slate-400">Society ID</p>
                     <p className="font-mono text-xs text-sky-300">{society._id}</p>
                   </div>
+                )}
+
+                {canManageStudents && societyId && (
+                  <>
+                  <div className="mt-6 border-t border-slate-800 pt-6">
+                    <p className="mb-3 font-medium text-slate-200">Enrolled members (students in this society)</p>
+                    <p className="mb-3 text-xs text-slate-500">
+                      All students enrolled in this society (President, Heads, Core, Members). Export to Excel with name, branch, sem, position, email.
+                    </p>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMemberDetails((v) => !v)}
+                      >
+                        <Users className="mr-1 h-4 w-4" />
+                        {showMemberDetails ? "Hide" : "View"} details of each student
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={exportingExcel || loadingMembers}
+                        onClick={handleDownloadMembersExcel}
+                      >
+                        <FileSpreadsheet className="mr-1 h-4 w-4" />
+                        {exportingExcel ? "Downloading…" : "Download Excel"}
+                      </Button>
+                    </div>
+                    {showMemberDetails && (
+                      <>
+                        {loadingMembers ? (
+                          <p className="text-xs text-slate-500">Loading members…</p>
+                        ) : members.length === 0 ? (
+                          <p className="text-xs text-slate-500">No enrolled members yet.</p>
+                        ) : (
+                          <div className="overflow-x-auto rounded-md border border-slate-800">
+                            <table className="w-full min-w-[500px] text-left text-xs">
+                              <thead>
+                                <tr className="border-b border-slate-800 bg-slate-900/70">
+                                  <th className="px-3 py-2 font-medium text-slate-300">Name</th>
+                                  <th className="px-3 py-2 font-medium text-slate-300">Email</th>
+                                  <th className="px-3 py-2 font-medium text-slate-300">Branch</th>
+                                  <th className="px-3 py-2 font-medium text-slate-300">Sem</th>
+                                  <th className="px-3 py-2 font-medium text-slate-300">Year</th>
+                                  <th className="px-3 py-2 font-medium text-slate-300">Position</th>
+                                  <th className="px-3 py-2 font-medium text-slate-300">Department</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {members.map((row) => (
+                                  <tr key={row._id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                                    <td className="px-3 py-2 text-slate-200">{row.name}</td>
+                                    <td className="px-3 py-2 text-slate-400">{row.email || "—"}</td>
+                                    <td className="px-3 py-2 text-slate-400">{row.branch || "—"}</td>
+                                    <td className="px-3 py-2 text-slate-400">{row.sem || "—"}</td>
+                                    <td className="px-3 py-2 text-slate-400">{row.year || "—"}</td>
+                                    <td className="px-3 py-2 text-slate-400">{row.position || "—"}</td>
+                                    <td className="px-3 py-2 text-slate-400">{row.department || "—"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-6 border-t border-slate-800 pt-6">
+                    <p className="mb-3 font-medium text-slate-200">Student roster (Excel upload)</p>
+                    <p className="mb-3 text-xs text-slate-500">
+                      Upload a CSV or Excel file with columns: name, branch, sem, year, department, position.
+                    </p>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={handleExcelUpload}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingExcel}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="mr-1 h-4 w-4" />
+                        {uploadingExcel ? "Uploading…" : "Upload Excel/CSV"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadTemplate}
+                      >
+                        <Download className="mr-1 h-4 w-4" />
+                        Download template
+                      </Button>
+                    </div>
+                    {loadingRoster ? (
+                      <p className="text-xs text-slate-500">Loading roster…</p>
+                    ) : roster.length === 0 ? (
+                      <p className="text-xs text-slate-500">No students in roster. Upload an Excel/CSV to add.</p>
+                    ) : (
+                      <div className="overflow-x-auto rounded-md border border-slate-800">
+                        <table className="w-full min-w-[400px] text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-800 bg-slate-900/70">
+                              <th className="px-3 py-2 font-medium text-slate-300">Name</th>
+                              <th className="px-3 py-2 font-medium text-slate-300">Branch</th>
+                              <th className="px-3 py-2 font-medium text-slate-300">Sem</th>
+                              <th className="px-3 py-2 font-medium text-slate-300">Year</th>
+                              <th className="px-3 py-2 font-medium text-slate-300">Department</th>
+                              <th className="px-3 py-2 font-medium text-slate-300">Position</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {roster.map((row) => (
+                              <tr key={row._id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                                <td className="px-3 py-2 text-slate-200">{row.name}</td>
+                                <td className="px-3 py-2 text-slate-400">{row.branch || "—"}</td>
+                                <td className="px-3 py-2 text-slate-400">{row.sem || "—"}</td>
+                                <td className="px-3 py-2 text-slate-400">{row.year || "—"}</td>
+                                <td className="px-3 py-2 text-slate-400">{row.department || "—"}</td>
+                                <td className="px-3 py-2 text-slate-400">{row.position || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                  </>
                 )}
 
                 {societyId && (

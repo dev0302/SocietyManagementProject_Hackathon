@@ -44,3 +44,58 @@ export const acceptInvite = async (data) => {
     throw error.response?.data || error;
   }
 };
+
+export const getSocietyMembers = async (societyId) => {
+  try {
+    const response = await apiConnector.get(`/api/societies/${societyId}/members`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const exportSocietyMembersExcel = async (societyId) => {
+  try {
+    const response = await apiConnector.get(`/api/societies/${societyId}/members/export`, {
+      responseType: "blob",
+    });
+    return response;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getSocietyStudents = async (societyId) => {
+  try {
+    const response = await apiConnector.get(`/api/societies/${societyId}/students`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const addSocietyStudents = async (societyId, students, replace = false) => {
+  try {
+    const response = await apiConnector.post(`/api/societies/${societyId}/students`, {
+      students,
+      replace,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const uploadSocietyStudentsExcel = async (societyId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiConnector.post(
+      `/api/societies/${societyId}/students/upload`,
+      formData,
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

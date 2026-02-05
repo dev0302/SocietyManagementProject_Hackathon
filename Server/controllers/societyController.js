@@ -189,7 +189,7 @@ export const createInvite = async (req, res) => {
       });
     }
 
-    if (![ROLES.CORE, ROLES.HEAD, ROLES.MEMBER].includes(role)) {
+    if (![ROLES.CORE, ROLES.HEAD, ROLES.MEMBER, ROLES.PRESIDENT].includes(role)) {
       return res.status(400).json({
         success: false,
         message: "Invalid invite role.",

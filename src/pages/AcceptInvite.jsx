@@ -11,6 +11,11 @@ import { setUser, setToken } from "@/redux/slices/authSlice";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 
+const roleLabel = (role) => {
+  const labels = { PRESIDENT: "President", CORE: "Core", HEAD: "Head", MEMBER: "Member" };
+  return labels[role] || role || "Member";
+};
+
 function AcceptInvite() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -65,9 +70,7 @@ function AcceptInvite() {
       if (data?.success) {
         setAccepted(true);
         toast.success(
-          inviteInfo?.role === "MEMBER"
-            ? "Invite accepted. You are now added as a Member."
-            : "Invite accepted. You are now added as Head."
+          `Invite accepted. You are now added as ${roleLabel(inviteInfo?.role)}.`
         );
         setTimeout(() => navigate("/dashboard", { replace: true }), 1500);
       } else {
@@ -192,7 +195,7 @@ function AcceptInvite() {
               <CardTitle>Department invite</CardTitle>
               <CardDescription>
                 You have been invited to join as{" "}
-                <strong>{inviteInfo.role === "MEMBER" ? "Member" : "Head"}</strong> of{" "}
+                <strong>{roleLabel(inviteInfo.role)}</strong> of{" "}
                 <strong>{inviteInfo.departmentName}</strong>. Accept to continue.
               </CardDescription>
             </CardHeader>
@@ -226,12 +229,12 @@ function AcceptInvite() {
         <Card className="w-full bg-slate-900/60 border-slate-800">
           <CardHeader>
             <CardTitle>
-              Join as {inviteInfo.role === "MEMBER" ? "Member" : "Head"} of{" "}
+              Join as {roleLabel(inviteInfo.role)} of{" "}
               {inviteInfo.departmentName}
             </CardTitle>
             <CardDescription>
               Create your account to be enrolled as{" "}
-              <strong>{inviteInfo.role === "MEMBER" ? "Member" : "Head"}</strong> of{" "}
+              <strong>{roleLabel(inviteInfo.role)}</strong> of{" "}
               <strong>{inviteInfo.departmentName}</strong>. Position and department are fixed.
             </CardDescription>
           </CardHeader>
@@ -299,7 +302,7 @@ function AcceptInvite() {
               <Button type="submit" className="w-full" disabled={signingUp}>
                 {signingUp
                   ? "Creating account…"
-                  : `Create account & join as ${inviteInfo.role === "MEMBER" ? "Member" : "Head"}`}
+                  : `Create account & join as ${roleLabel(inviteInfo.role)}`}
               </Button>
             </form>
           </CardContent>

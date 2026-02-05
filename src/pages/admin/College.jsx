@@ -229,6 +229,15 @@ function College() {
     }));
   };
 
+  const handleRemoveParticipant = (idx) => {
+    setEventFormData((prev) => ({
+      ...prev,
+      participants: prev.participants.filter((_, i) => i !== idx).length > 0
+        ? prev.participants.filter((_, i) => i !== idx)
+        : [{ email: "", role: "Participant" }],
+    }));
+  };
+
   const handleSubmitEvent = async (e) => {
     e.preventDefault();
     if (!eventFormData.title || !eventFormData.date) {
@@ -683,27 +692,37 @@ function College() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-medium text-slate-300">
-                            Participants (email + role, optional)
+                            Participants (email + role, optional). Add multiple; details will show on event page.
                           </label>
-                          <Button type="button" variant="outline" size="xs" onClick={handleAddParticipant}>
-                            + Add
+                          <Button type="button" variant="outline" size="sm" onClick={handleAddParticipant}>
+                            + Add participant
                           </Button>
                         </div>
                         {eventFormData.participants.map((p, idx) => (
-                          <div key={idx} className="flex gap-2">
+                          <div key={`participant-${idx}-${p.email || ""}`} className="flex flex-wrap items-center gap-2">
                             <Input
                               type="email"
                               value={p.email}
                               onChange={handleParticipantChange(idx, "email")}
                               placeholder="student@college.edu"
-                              className="flex-1"
+                              className="min-w-[180px] flex-1"
                             />
                             <Input
                               value={p.role}
                               onChange={handleParticipantChange(idx, "role")}
-                              placeholder="Role"
-                              className="w-28"
+                              placeholder="Role (e.g. Organizer, Volunteer)"
+                              className="w-36"
                             />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 text-red-400 hover:bg-red-500/10"
+                              onClick={() => handleRemoveParticipant(idx)}
+                              title="Remove this participant row"
+                            >
+                              Remove
+                            </Button>
                           </div>
                         ))}
                       </div>

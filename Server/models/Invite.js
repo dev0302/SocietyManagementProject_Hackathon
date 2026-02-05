@@ -23,7 +23,7 @@ const inviteSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: [ROLES.CORE, ROLES.HEAD, ROLES.MEMBER],
+      enum: [ROLES.CORE, ROLES.HEAD, ROLES.MEMBER, ROLES.PRESIDENT],
       required: true,
     },
     token: {

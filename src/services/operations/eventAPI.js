@@ -36,6 +36,17 @@ export const getEventParticipants = async (eventId) => {
   }
 };
 
+export const addEventParticipants = async (eventId, participants) => {
+  try {
+    const response = await apiConnector.post(`/api/events/${eventId}/participants`, {
+      participants,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const issueCertificate = async (data) => {
   try {
     const response = await apiConnector.post("/api/events/certificates", data);

@@ -13,8 +13,20 @@ const eventParticipantSchema = new mongoose.Schema(
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
       index: true,
+      default: null,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
+    },
+    displayName: {
+      type: String,
+      trim: true,
+      default: "",
     },
     role: {
       type: String,
@@ -26,6 +38,15 @@ const eventParticipantSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-eventParticipantSchema.index({ event: 1, student: 1 }, { unique: true });
+// Unique per event when linked to a student
+eventParticipantSchema.index(
+  { event: 1, student: 1 },
+  { unique: true, partialFilterExpression: { student: { $ne: null } } },
+);
+// Unique per event when guest (email only)
+eventParticipantSchema.index(
+  { event: 1, email: 1 },
+  { unique: true, partialFilterExpression: { student: null, email: { $ne: "" } } },
+);
 
 export default mongoose.model("EventParticipant", eventParticipantSchema);

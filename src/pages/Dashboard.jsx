@@ -497,7 +497,7 @@ function Dashboard() {
                           )}
                         </div>
                         <span className="rounded-full bg-slate-700/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-300">
-                          {m.role === "HEAD" ? "Head" : "Member"}
+                          {({ PRESIDENT: "President", CORE: "Core", HEAD: "Head", MEMBER: "Member" })[m.role] || m.role}
                         </span>
                       </div>
                     ))}

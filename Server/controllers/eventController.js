@@ -70,12 +70,19 @@ export const createEvent = async (req, res) => {
     for (const p of participantsList) {
       const email = (p.email || p).toString().trim().toLowerCase();
       const role = (p.role || "Participant").toString().trim();
+      const displayName = (p.displayName || "").toString().trim();
       if (!email) continue;
       const student = await User.findOne({ email, role: "STUDENT" });
       if (student) {
         await EventParticipant.findOneAndUpdate(
           { event: event._id, student: student._id },
-          { event: event._id, student: student._id, role },
+          { event: event._id, student: student._id, role, email: "", displayName: "" },
+          { upsert: true },
+        );
+      } else {
+        await EventParticipant.findOneAndUpdate(
+          { event: event._id, student: null, email },
+          { event: event._id, student: null, email, displayName, role },
           { upsert: true },
         );
       }
@@ -206,6 +213,7 @@ export const getEventById = async (req, res) => {
     }
     const participants = await EventParticipant.find({ event: eventId })
       .populate("student", "firstName lastName email avatarUrl")
+      .sort({ createdAt: 1 })
       .lean();
     const certificates = await Certificate.find({ event: eventId })
       .populate("student", "firstName lastName email")
@@ -218,6 +226,56 @@ export const getEventById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch event.",
+    });
+  }
+};
+
+// Add participants to an existing event (faculty/core/head for their society events)
+export const addEventParticipants = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { participants: participantsList } = req.body;
+
+    const event = await Event.findById(eventId).populate("society", "facultyCoordinator").lean();
+    if (!event) {
+      return res.status(404).json({ success: false, message: "Event not found." });
+    }
+
+    const list = Array.isArray(participantsList) ? participantsList : [];
+    for (const p of list) {
+      const email = (p.email || p).toString().trim().toLowerCase();
+      const role = (p.role || "Participant").toString().trim();
+      const displayName = (p.displayName || "").toString().trim();
+      if (!email) continue;
+      const student = await User.findOne({ email, role: "STUDENT" });
+      if (student) {
+        await EventParticipant.findOneAndUpdate(
+          { event: eventId, student: student._id },
+          { event: eventId, student: student._id, role, email: "", displayName: "" },
+          { upsert: true },
+        );
+      } else {
+        await EventParticipant.findOneAndUpdate(
+          { event: eventId, student: null, email },
+          { event: eventId, student: null, email, displayName, role },
+          { upsert: true },
+        );
+      }
+    }
+
+    const participants = await EventParticipant.find({ event: eventId })
+      .populate("student", "firstName lastName email avatarUrl")
+      .sort({ createdAt: 1 })
+      .lean();
+    return res.status(200).json({
+      success: true,
+      message: "Participants added.",
+      data: participants,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add participants.",
     });
   }
 };

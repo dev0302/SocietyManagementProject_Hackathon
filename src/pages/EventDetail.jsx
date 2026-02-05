@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import PrivateRoute from "@/components/core/auth/PrivateRoute";
-import { getEventById, issueCertificate } from "@/services/operations/eventAPI";
+import { getEventById, issueCertificate, addEventParticipants } from "@/services/operations/eventAPI";
 import { ROLES } from "@/config/roles";
 import { ArrowLeft } from "lucide-react";
 
@@ -19,6 +19,9 @@ function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [certSerialNos, setCertSerialNos] = useState({});
   const [submitting, setSubmitting] = useState({});
+  const [newParticipants, setNewParticipants] = useState([{ email: "", role: "Participant" }]);
+  const [showAddParticipants, setShowAddParticipants] = useState(false);
+  const [addingParticipants, setAddingParticipants] = useState(false);
 
   const loadEvent = async (showLoading = true) => {
     if (!eventId) return;
@@ -56,9 +59,52 @@ function EventDetail() {
     user?.id &&
     String(facultyCoordinatorId) === String(user.id) &&
     isPast;
+  const canAddParticipants =
+    (user?.role === ROLES.FACULTY || user?.role === ROLES.CORE || user?.role === ROLES.HEAD) &&
+    user?.id &&
+    String(facultyCoordinatorId) === String(user.id);
 
   const handleSerialChange = (studentId, value) => {
     setCertSerialNos((prev) => ({ ...prev, [studentId]: value }));
+  };
+
+  const handleAddParticipantRow = () => {
+    setNewParticipants((prev) => [...prev, { email: "", role: "Participant" }]);
+  };
+  const handleNewParticipantChange = (idx, field) => (e) => {
+    const v = e.target.value;
+    setNewParticipants((prev) =>
+      prev.map((p, i) => (i === idx ? { ...p, [field]: v } : p)),
+    );
+  };
+  const handleRemoveNewParticipant = (idx) => {
+    setNewParticipants((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== idx) : [{ email: "", role: "Participant" }],
+    );
+  };
+  const handleSubmitNewParticipants = async (e) => {
+    e.preventDefault();
+    const list = newParticipants.filter((p) => p.email?.trim()).map((p) => ({ email: p.email.trim(), role: p.role || "Participant" }));
+    if (list.length === 0) {
+      toast.error("Add at least one participant with email");
+      return;
+    }
+    setAddingParticipants(true);
+    try {
+      const res = await addEventParticipants(eventId, list);
+      if (res.success) {
+        toast.success("Participants added");
+        setShowAddParticipants(false);
+        setNewParticipants([{ email: "", role: "Participant" }]);
+        loadEvent(false);
+      } else {
+        throw new Error(res.message || "Failed to add participants");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to add participants");
+    } finally {
+      setAddingParticipants(false);
+    }
   };
 
   const handleIssueCertificate = async (studentId) => {
@@ -169,17 +215,20 @@ function EventDetail() {
               <div>
                 <h3 className="text-sm font-medium text-slate-200">Participants & roles</h3>
                 <ul className="mt-2 space-y-2">
-                  {(event.participants || []).map((p) => (
+                  {(event.participants || []).map((p) => {
+                    const displayName = p.student
+                      ? `${(p.student.firstName || "").trim()} ${(p.student.lastName || "").trim()}`.trim() || p.student.email || "—"
+                      : (p.displayName || p.email || "—");
+                    const subText = p.student ? p.student.email : p.email || "";
+                    return (
                     <li
-                      key={p.student?._id || p._id}
+                      key={p._id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-900/50 px-3 py-2"
                     >
                       <div>
-                        <span className="text-sm text-slate-100">
-                          {p.student?.firstName} {p.student?.lastName}
-                        </span>
+                        <span className="text-sm text-slate-100">{displayName}</span>
                         <span className="ml-2 text-xs text-slate-500">
-                          ({p.student?.email}) • {p.role}
+                          {subText ? `(${subText})` : ""} {p.role ? `• ${p.role}` : ""}
                         </span>
                       </div>
                       {isPast && (
@@ -208,10 +257,71 @@ function EventDetail() {
                         </div>
                       )}
                     </li>
-                  ))}
+                  ); })}
                 </ul>
                 {(event.participants || []).length === 0 && (
                   <p className="text-xs text-slate-500">No participants listed.</p>
+                )}
+
+                {canAddParticipants && (
+                  <div className="mt-3">
+                    {!showAddParticipants ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddParticipants(true)}
+                      >
+                        + Add more participants
+                      </Button>
+                    ) : (
+                      <form onSubmit={handleSubmitNewParticipants} className="mt-2 space-y-2 rounded-md border border-slate-800 bg-slate-900/30 p-3">
+                        <p className="text-xs font-medium text-slate-300">Add participants (email + role)</p>
+                        {newParticipants.map((p, idx) => (
+                          <div key={idx} className="flex flex-wrap items-center gap-2">
+                            <Input
+                              type="email"
+                              value={p.email}
+                              onChange={handleNewParticipantChange(idx, "email")}
+                              placeholder="student@college.edu"
+                              className="min-w-[180px] flex-1"
+                            />
+                            <Input
+                              value={p.role}
+                              onChange={handleNewParticipantChange(idx, "role")}
+                              placeholder="Role"
+                              className="w-32"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 text-red-400 hover:bg-red-500/10"
+                              onClick={() => handleRemoveNewParticipant(idx)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={handleAddParticipantRow}>
+                            + Add row
+                          </Button>
+                          <Button type="submit" size="sm" disabled={addingParticipants}>
+                            {addingParticipants ? "Adding…" : "Save participants"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setShowAddParticipants(false); setNewParticipants([{ email: "", role: "Participant" }]); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 )}
               </div>
 

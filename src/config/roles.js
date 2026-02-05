@@ -4,5 +4,6 @@ export const ROLES = {
   CORE: "CORE",
   HEAD: "HEAD",
   MEMBER: "MEMBER",
+  PRESIDENT: "PRESIDENT",
   STUDENT: "STUDENT",
 };
