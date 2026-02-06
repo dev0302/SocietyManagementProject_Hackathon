@@ -29,6 +29,72 @@ function Navbar() {
   const [hasSearched, setHasSearched] = useState(false);
   const [open, setOpen] = useState(false); // mobile drawer
 
+  const hasQuery = searchQuery.trim().length > 0;
+
+  const SearchResultsPanel = ({ variant = "desktop" }) => {
+    if (!hasQuery || (!isSearchFocused && variant === "desktop")) return null;
+
+    const baseClasses =
+      "z-[1200] rounded-2xl border border-slate-800/80 bg-slate-950/95 p-2 shadow-2xl shadow-sky-900/40 backdrop-blur transition-all duration-200 ease-out";
+
+    const containerClasses =
+      variant === "desktop"
+        ? `absolute left-0 top-full mt-2 w-80 ${baseClasses}`
+        : `mt-2 max-h-72 w-full ${baseClasses}`;
+
+    return (
+      <div className={containerClasses}>
+        <div className="flex items-center justify-between px-2 pb-1">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            People
+          </span>
+          <span className="text-[9px] text-slate-500">
+            Type to search by name or email
+          </span>
+        </div>
+        {searchLoading ? (
+          <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
+            <span className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+            <span>Searching&hellip;</span>
+          </div>
+        ) : hasSearched && searchResults.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-slate-500">No matching users.</div>
+        ) : searchResults.length > 0 ? (
+          <ul className="max-h-64 space-y-1 overflow-y-auto">
+            {searchResults.map((result) => (
+              <li
+                key={result.id || result._id || result.email}
+                className="group flex cursor-default items-center gap-3 rounded-xl px-2 py-2 text-xs text-slate-100 transition-all duration-150 ease-out hover:bg-slate-900/90 hover:shadow-[0_0_0_1px_rgba(56,189,248,0.4)]"
+              >
+                <Avatar className="h-8 w-8 border border-slate-800/80 bg-slate-900">
+                  {result.avatarUrl ? (
+                    <AvatarImage src={result.avatarUrl} alt={result.firstName} />
+                  ) : (
+                    <AvatarFallback className="text-[10px]">
+                      {result.firstName?.[0]}
+                      {result.lastName?.[0]}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-medium group-hover:text-sky-300">
+                    {result.firstName} {result.lastName}
+                  </div>
+                  <div className="truncate text-[10px] text-slate-400">
+                    {result.email}
+                  </div>
+                </div>
+                <span className="rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] uppercase tracking-wide text-slate-300 group-hover:bg-sky-500/20 group-hover:text-sky-300">
+                  {result.role}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    );
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -129,59 +195,7 @@ function Navbar() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-28 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:outline-none xl:w-44"
             />
-            {isSearchFocused && searchQuery.trim() && (
-              <div className="absolute left-0 top-full z-[1200] mt-2 w-80 rounded-2xl border border-slate-800/80 bg-slate-950/95 p-2 shadow-2xl shadow-sky-900/40 backdrop-blur transition-all duration-200 ease-out">
-                <div className="flex items-center justify-between px-2 pb-1">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                    People
-                  </span>
-                  <span className="text-[9px] text-slate-500">
-                    Type to search by name or email
-                  </span>
-                </div>
-                {searchLoading ? (
-                  <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
-                    <span className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
-                    <span>Searching&hellip;</span>
-                  </div>
-                ) : hasSearched && searchResults.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-slate-500">
-                    No matching users.
-                  </div>
-                ) : searchResults.length > 0 ? (
-                  <ul className="max-h-72 space-y-1 overflow-y-auto">
-                    {searchResults.map((result) => (
-                      <li
-                        key={result.id || result._id || result.email}
-                        className="group flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-xs text-slate-100 transition-all duration-150 ease-out hover:bg-slate-900/90 hover:shadow-[0_0_0_1px_rgba(56,189,248,0.4)] hover:-translate-y-[1px]"
-                      >
-                        <Avatar className="h-8 w-8 border border-slate-800/80 bg-slate-900">
-                          {result.avatarUrl ? (
-                            <AvatarImage src={result.avatarUrl} alt={result.firstName} />
-                          ) : (
-                            <AvatarFallback className="text-[10px]">
-                              {result.firstName?.[0]}
-                              {result.lastName?.[0]}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-medium group-hover:text-sky-300">
-                            {result.firstName} {result.lastName}
-                          </div>
-                          <div className="truncate text-[10px] text-slate-400">
-                            {result.email}
-                          </div>
-                        </div>
-                        <span className="rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] uppercase tracking-wide text-slate-300 group-hover:bg-sky-500/20 group-hover:text-sky-300">
-                          {result.role}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            )}
+            <SearchResultsPanel variant="desktop" />
           </div>
 
           {/* Links */}
@@ -255,84 +269,137 @@ function Navbar() {
       {/* MOBILE DRAWER OVERLAY */}
       {open && (
         <div
-          className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm lg:hidden z-[1050]"
           onClick={() => setOpen(false)}
         />
       )}
 
-      {/* MOBILE DRAWER */}
+      {/* MOBILE DRAWER CONTENT */}
       <div
-        className={`fixed top-0 right-0 z-[3000] h-full w-[280px] border-l border-white/10 bg-slate-950 p-6 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-in-out lg:hidden ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`fixed top-0 right-0 h-full w-[280px] max-w-full z-[1100] p-5 flex flex-col transition-transform duration-500 ease-in-out lg:hidden
+        border-l border-slate-800/80 bg-slate-950/95 shadow-[-12px_0_40px_rgba(15,23,42,0.95)]
+        ${open ? "translate-x-0" : "translate-x-full"}`}
       >
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 text-slate-950">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <NavLink
+            to="/"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 text-slate-950 shadow-lg shadow-sky-500/30">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="text-sm font-bold text-slate-50">SocietySync</span>
-          </div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-slate-50">
+                SocietySync
+              </div>
+              <div className="text-[10px] text-slate-400">
+                Institution-wide platform
+              </div>
+            </div>
+          </NavLink>
+
           <button
             onClick={() => setOpen(false)}
-            className="text-2xl text-slate-300 hover:text-sky-400"
+            className="rounded-full p-1.5 text-slate-300 transition-colors hover:bg-slate-800/80 hover:text-slate-50"
             aria-label="Close menu"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Mobile search */}
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-2">
-          <Search className="h-4 w-4 text-slate-300" />
-          <input
-            type="text"
-            placeholder="Search...(under construction)"
-            className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none"
-          />
+        {/* Mobile Search */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-800/80 bg-slate-900/50 px-3 py-2 text-sm">
+            <Search className="h-4 w-4 text-slate-300" />
+            <input
+              type="text"
+              placeholder={
+                hasQuery
+                  ? "Searching people..."
+                  : "Search people (beta)"
+              }
+              value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => {
+                setIsSearchFocused(false);
+                setSearchResults([]);
+              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:outline-none"
+            />
+          </div>
+          <div className="mt-2">
+            <SearchResultsPanel variant="mobile" />
+          </div>
         </div>
 
-        <div className="flex flex-col">
-          {NavbarLinks.map((link) => (
-            <NavLink
-              key={link.title}
-              to={link.path}
-              onClick={() => setOpen(false)}
-              className="border-b border-white/5 py-3 text-base text-slate-300 hover:text-slate-50"
-            >
-              {link.title}
-            </NavLink>
-          ))}
+        {/* Links */}
+        <div className="flex-1 overflow-y-auto">
+          <ul className="space-y-1">
+            {NavbarLinks.map((link) => (
+              <li key={link.title}>
+                <NavLink
+                  to={link.path}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    `block rounded-xl px-3 py-2 text-sm font-medium transition-all ${
+                      isActive
+                        ? "bg-slate-800/90 text-slate-50"
+                        : "text-slate-300 hover:bg-slate-900 hover:text-slate-50"
+                    }`
+                  }
+                >
+                  {link.title}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-          {token && (
-            <NavLink
-              to="/dashboard"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 border-b border-white/5 py-3 text-base text-slate-300 hover:text-slate-50"
-            >
-              <Settings className="h-4 w-4" /> Dashboard
-            </NavLink>
+        {/* Footer / Auth section */}
+        <div className="mt-4 border-t border-slate-800/80 pt-3">
+          {token ? (
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={() => {
+                  navigate("/dashboard");
+                  setOpen(false);
+                }}
+                className="flex-1 rounded-full border border-slate-800/80 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 transition-all hover:bg-slate-900"
+              >
+                Go to dashboard
+              </button>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  handleLogout();
+                }}
+                className="rounded-full bg-gradient-to-r from-sky-500 to-cyan-500 px-3 py-2 text-xs font-bold text-slate-950 transition-all hover:opacity-95"
+              >
+                Log out
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <NavLink to="/login" onClick={() => setOpen(false)} className="flex-1">
+                <button className="w-full rounded-full border border-slate-800/80 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 transition-all hover:bg-slate-900">
+                  Log in
+                </button>
+              </NavLink>
+              <NavLink
+                to="/signup?role=student"
+                onClick={() => setOpen(false)}
+                className="flex-1"
+              >
+                <button className="w-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-500 px-3 py-2 text-xs font-bold text-slate-950 transition-all hover:opacity-95">
+                  Sign up
+                </button>
+              </NavLink>
+            </div>
           )}
         </div>
-
-        {!token && (
-          <div className="mt-auto flex flex-col gap-y-3 pt-8">
-            <NavLink
-              to="/login"
-              onClick={() => setOpen(false)}
-              className="rounded-lg border border-white/10 bg-slate-900/60 py-3 text-center text-sm text-slate-50"
-            >
-              Log in
-            </NavLink>
-            <NavLink
-              to="/signup?role=student"
-              onClick={() => setOpen(false)}
-              className="rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 py-3 text-center text-sm font-bold text-slate-950"
-            >
-              Sign up
-            </NavLink>
-          </div>
-        )}
       </div>
     </div>
   );

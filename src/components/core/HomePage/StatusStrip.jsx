@@ -84,8 +84,8 @@ function StatusStrip() {
       }`} />
       
       <div className="relative border-b border-slate-800/50 bg-gradient-to-r from-slate-900/95 to-slate-900/90 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 w-11/12 mx-auto">
-          <div className="flex items-center justify-between py-2">
+        <div className="mx-auto max-w-7xl w-11/12 px-3 sm:px-4">
+          <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
             {/* Status Badge */}
             <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 ${getStatusColor()}`}>
               <div className="flex items-center gap-2">
@@ -106,8 +106,8 @@ function StatusStrip() {
             </div>
 
             {/* Status Message */}
-            <div className="flex-1 px-6">
-              <div className="flex items-center justify-between">
+            <div className="w-full px-1 sm:flex-1 sm:px-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="text-sm font-medium text-slate-200">
                     Platform Status
@@ -127,7 +127,7 @@ function StatusStrip() {
                 </div>
                 
                 {/* Last Checked & Actions */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 sm:justify-end">
                   {lastChecked && (
                     <div className="text-xs text-slate-500">
                       Last checked: {formatTime(lastChecked)}
