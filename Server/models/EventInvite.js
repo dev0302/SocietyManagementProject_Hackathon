@@ -24,7 +24,7 @@ const eventInviteSchema = new mongoose.Schema(
     token: {
       type: String,
       required: true,
-      unique: true,
+      // Unique index is defined via schema.index below to avoid duplicates.
     },
     expiresAt: {
       type: Date,
