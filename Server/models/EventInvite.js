@@ -24,7 +24,8 @@ const eventInviteSchema = new mongoose.Schema(
     token: {
       type: String,
       required: true,
-      // Unique index is defined via schema.index below to avoid duplicates.
+      unique: true,
+      index: true,
     },
     expiresAt: {
       type: Date,
@@ -47,7 +48,6 @@ const eventInviteSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-eventInviteSchema.index({ token: 1 }, { unique: true });
 eventInviteSchema.index({ event: 1, email: 1 });
 
 export default mongoose.model("EventInvite", eventInviteSchema);

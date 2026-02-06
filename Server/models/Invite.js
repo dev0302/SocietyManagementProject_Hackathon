@@ -29,7 +29,8 @@ const inviteSchema = new mongoose.Schema(
     token: {
       type: String,
       required: true,
-      // Unique index is defined via schema.index to avoid duplicates.
+      unique: true,
+      index: true,
     },
     expiresAt: {
       type: Date,
@@ -52,7 +53,6 @@ const inviteSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-inviteSchema.index({ token: 1 }, { unique: true });
 inviteSchema.index({ email: 1, society: 1, role: 1 });
 
 export default mongoose.model("Invite", inviteSchema);

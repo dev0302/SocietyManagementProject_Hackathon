@@ -20,7 +20,8 @@ const societyInviteLinkSchema = new mongoose.Schema(
     token: {
       type: String,
       required: true,
-      // Unique index is defined via schema.index below to avoid duplicates.
+      unique: true,
+      index: true,
     },
     expiresAt: {
       type: Date,
@@ -47,7 +48,5 @@ const societyInviteLinkSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-
-societyInviteLinkSchema.index({ token: 1 }, { unique: true });
 
 export default mongoose.model("SocietyInviteLink", societyInviteLinkSchema);
