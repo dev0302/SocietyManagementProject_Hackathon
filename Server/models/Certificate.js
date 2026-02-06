@@ -25,7 +25,7 @@ const certificateSchema = new mongoose.Schema(
     serialNo: {
       type: String,
       trim: true,
-      unique: true,
+      // unique: true,
       sparse: true,
     },
     content: {
@@ -40,8 +40,12 @@ const certificateSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+
 certificateSchema.index({ student: 1, society: 1, event: 1 });
-certificateSchema.index({ serialNo: 1 }, { unique: true });
 
-export default mongoose.model("Certificate", certificateSchema);
+if (!certificateSchema.indexes().some(i => i[0].serialNo)) {
+  certificateSchema.index({ serialNo: 1 });
+}
 
+export default mongoose.models.Certificate ||
+  mongoose.model("Certificate", certificateSchema);

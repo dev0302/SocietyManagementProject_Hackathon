@@ -9,7 +9,7 @@ const societyStudentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Society",
       required: true,
-      index: true,
+      // index: true,
     },
     name: {
       type: String,
