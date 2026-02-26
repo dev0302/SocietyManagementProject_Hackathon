@@ -1,8 +1,7 @@
 import mongoose from "mongoose";
 
-// College represents an institution managed by an admin.
-// A college has a unique code (3 letters + 3 digits) that
-// is used by societies to associate themselves with it.
+// College belongs to a University. Has accessControl (adminEmails, facultyEmails).
+// uniqueCode/code used by societies to associate; admin or accessControl.adminEmails for college admins.
 
 const collegeSchema = new mongoose.Schema(
   {
@@ -11,12 +10,25 @@ const collegeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    code: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    university: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "University",
+      default: null,
+      index: true,
+    },
     email: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
-      unique: true,
+      default: "",
     },
     address: {
       type: String,
@@ -32,15 +44,24 @@ const collegeSchema = new mongoose.Schema(
     },
     uniqueCode: {
       type: String,
-      required: true,
-      unique: true,
+      trim: true,
       uppercase: true,
+      sparse: true,
+      index: true,
     },
     admin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
       index: true,
+    },
+    // For backward compat: existing colleges may have required admin; new ones can use accessControl only.
+    accessControl: {
+      type: {
+        adminEmails: [{ type: String, trim: true, lowercase: true }],
+        facultyEmails: [{ type: String, trim: true, lowercase: true }],
+      },
+      default: () => ({ adminEmails: [], facultyEmails: [] }),
     },
     isVerified: {
       type: Boolean,

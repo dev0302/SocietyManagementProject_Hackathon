@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { auth } from "../middlewares/auth.js";
-import { isAdmin, isFaculty } from "../middlewares/roles.js";
+import { isCollegeAdmin, isFaculty, attachCollegeIfAny } from "../middlewares/roles.js";
 import {
   getMyCollege,
   upsertMyCollege,
@@ -25,10 +25,10 @@ import {
 
 const router = Router();
 
-// Admin college management
-router.get("/me", auth, isAdmin, getMyCollege);
-router.post("/me", auth, isAdmin, upsertMyCollege);
-router.post("/me/profile-image", auth, isAdmin, uploadCollegeProfileImage);
+// College admin: get/update my college (attachCollegeIfAny for upsert so OTP create still works for platform admin)
+router.get("/me", auth, isCollegeAdmin, getMyCollege);
+router.post("/me", auth, attachCollegeIfAny, upsertMyCollege);
+router.post("/me/profile-image", auth, attachCollegeIfAny, uploadCollegeProfileImage);
 
 // Public endpoints for society onboarding via unique code
 router.get("/code/:code", getCollegeByCode);
@@ -37,16 +37,14 @@ router.post("/society-request", createSocietyRequest);
 // Public: get society invite by token (for onboarding page with token)
 router.get("/society-invite", getSocietyInviteByToken);
 
-// Admin endpoints for society requests + college societies + events
-router.get("/requests", auth, isAdmin, getMySocietyRequests);
-router.get("/societies", auth, isAdmin, getMyCollegeSocieties);
-router.get("/events", auth, isAdmin, getCollegeEvents);
-router.post("/requests/:requestId/approve", auth, isAdmin, approveSocietyRequest);
-router.post("/requests/:requestId/reject", auth, isAdmin, rejectSocietyRequest);
-router.delete("/societies/:societyId", auth, isAdmin, deleteSociety);
-
-// Admin: create society invite link with faculty head email
-router.post("/society-invite-link", auth, isAdmin, createSocietyInviteLink);
+// College admin: society requests, societies, events, invite link
+router.get("/requests", auth, isCollegeAdmin, getMySocietyRequests);
+router.get("/societies", auth, isCollegeAdmin, getMyCollegeSocieties);
+router.get("/events", auth, isCollegeAdmin, getCollegeEvents);
+router.post("/requests/:requestId/approve", auth, isCollegeAdmin, approveSocietyRequest);
+router.post("/requests/:requestId/reject", auth, isCollegeAdmin, rejectSocietyRequest);
+router.delete("/societies/:societyId", auth, isCollegeAdmin, deleteSociety);
+router.post("/society-invite-link", auth, isCollegeAdmin, createSocietyInviteLink);
 
 // Authenticated: create society from invite (faculty head email must match)
 router.post("/society-from-invite", auth, createSocietyFromInvite);

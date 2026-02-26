@@ -1,0 +1,37 @@
+so we have : 
+
+admin -> faculty -> students
+
+inside students -> core team -> heads -> members
+
+gfg -> tech society -> depts -> tech, social media, design, content and doc, event management, spons, publicity.
+
+tech dept -> to save projects, upload tips
+
+social media -> 
+
+design -> 
+
+content and doc -> 
+
+event management -> 
+
+spons -> history? -> pvt details portal for admin
+
+publicity -> 
+
+----------------------------------------------------------------------
+
+--> setup :
+1. node js
+2. git
+3. cursor ai
+4. vs code
+
+--> GitHub things :
+--> colours schema? design?
+--> folder structure?
+--> cursor ai all things
+--> notion link
+
+

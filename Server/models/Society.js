@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+// Society belongs to one University and one College. Core → Head → Member hierarchy within society.
+
 const societySchema = new mongoose.Schema(
   {
     name: {
@@ -17,12 +19,28 @@ const societySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    // New: associate a society with a college
+    university: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "University",
+      default: null,
+      index: true,
+    },
     college: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "College",
       index: true,
       default: null,
+    },
+    collegeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "College",
+      default: null,
+      index: true,
+    },
+    roleConfig: {
+      coreEmails: [{ type: String, trim: true, lowercase: true }],
+      headEmails: [{ type: String, trim: true, lowercase: true }],
+      memberEmails: [{ type: String, trim: true, lowercase: true }],
     },
     // New: tech / non-tech flag
     category: {

@@ -33,6 +33,77 @@ const generateUniqueCollegeCode = async () => {
   throw new Error("Failed to generate unique college code");
 };
 
+// Resolve college for current user: by admin ID or by accessControl.adminEmails (college admin).
+export const getCollegeForUser = async (req) => {
+  const college = await College.findOne({
+    $or: [
+      { admin: req.user.id },
+      { "accessControl.adminEmails": req.user.email?.toLowerCase() },
+    ],
+  });
+  return college || null;
+};
+
+// University admin: create a college under their university
+export const createCollegeUnderUniversity = async (req, res) => {
+  try {
+    const university = req.university;
+    if (!university) {
+      return res.status(400).json({ success: false, message: "University context required." });
+    }
+    const { name, code, adminEmails, facultyEmails } = req.body;
+    if (!name || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and code are required.",
+      });
+    }
+    const normalizedCode = String(code).trim().toUpperCase();
+    const existing = await College.findOne({
+      $or: [{ code: normalizedCode }, { uniqueCode: normalizedCode }],
+    });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "A college with this code already exists.",
+      });
+    }
+    const adminEmailsList = Array.isArray(adminEmails)
+      ? adminEmails.map((e) => String(e).trim().toLowerCase()).filter(Boolean)
+      : [];
+    const facultyEmailsList = Array.isArray(facultyEmails)
+      ? facultyEmails.map((e) => String(e).trim().toLowerCase()).filter(Boolean)
+      : [];
+    const college = await College.create({
+      name: name.trim(),
+      code: normalizedCode,
+      uniqueCode: normalizedCode,
+      university: university._id,
+      accessControl: { adminEmails: adminEmailsList, facultyEmails: facultyEmailsList },
+      email: "",
+      isVerified: true,
+    });
+    await createAuditLog({
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      action: "COLLEGE_CREATED",
+      targetModel: "College",
+      targetId: String(college._id),
+      metadata: { code: college.code, universityId: String(university._id) },
+    });
+    return res.status(201).json({
+      success: true,
+      message: "College created under university.",
+      data: college,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create college.",
+    });
+  }
+};
+
 // Admin creates or updates their college profile.
 // Requires a previously verified OTP for the college email.
 export const upsertMyCollege = async (req, res) => {
@@ -71,7 +142,7 @@ export const upsertMyCollege = async (req, res) => {
     // Consume OTP
     await OTP.deleteOne({ _id: recentOTP[0]._id });
 
-    let college = await College.findOne({ admin: adminId });
+    let college = await getCollegeForUser(req);
 
     if (!college) {
       const uniqueCode = await generateUniqueCollegeCode();
@@ -174,12 +245,10 @@ export const uploadCollegeProfileImage = async (req, res) => {
   }
 };
 
-// Get the college associated with the current admin.
+// Get the college associated with the current user (admin or accessControl.adminEmails).
 export const getMyCollege = async (req, res) => {
   try {
-    const adminId = req.user.id;
-    const college = await College.findOne({ admin: adminId });
-
+    const college = req.college || (await getCollegeForUser(req));
     return res.status(200).json({
       success: true,
       data: college || null,
@@ -203,9 +272,10 @@ export const getCollegeByCode = async (req, res) => {
       });
     }
 
-    const college = await College.findOne({ uniqueCode: code.toUpperCase() }).select(
-      "name uniqueCode",
-    );
+    const upper = code.toUpperCase().trim();
+    const college = await College.findOne({
+      $or: [{ uniqueCode: upper }, { code: upper }],
+    }).select("name uniqueCode code university");
 
     if (!college) {
       return res.status(404).json({
@@ -274,8 +344,7 @@ export const createSocietyRequest = async (req, res) => {
 // Admin: list pending society requests for their college.
 export const getMySocietyRequests = async (req, res) => {
   try {
-    const adminId = req.user.id;
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
 
     if (!college) {
       return res.status(200).json({
@@ -329,8 +398,7 @@ const getEventsDateRange = (filter) => {
 // Query: filter=upcoming|today|yesterday|tomorrow|past, category=TECH|NON_TECH
 export const getCollegeEvents = async (req, res) => {
   try {
-    const adminId = req.user.id;
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
     if (!college) {
       return res.status(200).json({ success: true, data: [] });
     }
@@ -472,8 +540,7 @@ export const getFacultyEvents = async (req, res) => {
 // Admin: list societies under their college.
 export const getMyCollegeSocieties = async (req, res) => {
   try {
-    const adminId = req.user.id;
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
 
     if (!college) {
       return res.status(200).json({
@@ -505,7 +572,7 @@ export const approveSocietyRequest = async (req, res) => {
     const adminId = req.user.id;
     const { requestId } = req.params;
 
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
     if (!college) {
       return res.status(400).json({
         success: false,
@@ -556,6 +623,8 @@ export const approveSocietyRequest = async (req, res) => {
       description: "",
       facultyCoordinator: facultyCoordinatorId,
       college: college._id,
+      collegeId: college._id,
+      university: college.university || undefined,
       category: request.category,
       logoUrl: "",
       facultyName: "",
@@ -630,7 +699,7 @@ export const rejectSocietyRequest = async (req, res) => {
     const adminId = req.user.id;
     const { requestId } = req.params;
 
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
     if (!college) {
       return res.status(400).json({
         success: false,
@@ -680,7 +749,7 @@ export const deleteSociety = async (req, res) => {
     const adminId = req.user.id;
     const { societyId } = req.params;
 
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
     if (!college) {
       return res.status(400).json({
         success: false,
@@ -739,7 +808,7 @@ export const createSocietyInviteLink = async (req, res) => {
       });
     }
 
-    const college = await College.findOne({ admin: adminId });
+    const college = await getCollegeForUser(req);
     if (!college) {
       return res.status(400).json({
         success: false,
@@ -797,7 +866,7 @@ export const getSocietyInviteByToken = async (req, res) => {
     }
 
     const invite = await SocietyInviteLink.findOne({ token })
-      .populate("college", "name uniqueCode")
+      .populate("college", "name uniqueCode code university")
       .lean();
 
     if (!invite || invite.used) {
@@ -877,11 +946,14 @@ export const createSocietyFromInvite = async (req, res) => {
       await user.save();
     }
 
+    const college = invite.college;
     const society = await Society.create({
       name: name.trim(),
       description: description?.trim() || "",
       facultyCoordinator: userId,
-      college: invite.college._id,
+      college: college._id,
+      collegeId: college._id,
+      university: college.university || undefined,
       category: category === "NON_TECH" ? "NON_TECH" : "TECH",
       logoUrl: logoUrl?.trim() || "",
       facultyName: facultyName?.trim() || "",
