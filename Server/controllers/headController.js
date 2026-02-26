@@ -1,5 +1,7 @@
 import Invite from "../models/Invite.js";
 import Membership from "../models/Membership.js";
+import Department from "../models/Department.js";
+import Society from "../models/Society.js";
 import { ROLES } from "../config/roles.js";
 import { createAuditLog } from "../utils/auditLogger.js";
 
@@ -20,23 +22,41 @@ export const listDepartmentMembers = async (req, res) => {
       });
     }
 
-    const memberships = await Membership.find({
-      department: headMembership.department,
-      isActive: true,
-    })
-      .populate("student", "firstName lastName email")
-      .sort({ createdAt: 1 })
-      .lean();
+    const [memberships, department, society] = await Promise.all([
+      Membership.find({
+        department: headMembership.department,
+        isActive: true,
+        role: ROLES.MEMBER,
+      })
+        .populate("student", "firstName lastName email")
+        .sort({ createdAt: 1 })
+        .lean(),
+      Department.findById(headMembership.department).populate("society", "name"),
+      Society.findById(headMembership.society, "name"),
+    ]);
 
     const data = memberships.map((m) => ({
       _id: m._id,
       role: m.role,
+      startedAt: m.startedAt,
       student: m.student
         ? {
             id: m.student._id,
             firstName: m.student.firstName,
             lastName: m.student.lastName,
             email: m.student.email,
+          }
+        : null,
+      department: department
+        ? {
+            id: department._id,
+            name: department.name,
+          }
+        : null,
+      society: society
+        ? {
+            id: society._id,
+            name: society.name,
           }
         : null,
     }));
