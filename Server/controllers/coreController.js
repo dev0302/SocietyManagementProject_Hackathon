@@ -262,3 +262,40 @@ export const getDepartmentsSummary = async (req, res) => {
   }
 };
 
+// List heads assigned by the current core user (department + head).
+// "Added by core" is interpreted as departments created by this core user.
+export const listMyDepartmentHeads = async (req, res) => {
+  try {
+    const departments = await Department.find({
+      createdBy: req.user.id,
+      head: { $ne: null },
+      isActive: true,
+    })
+      .populate("head", "firstName lastName email avatarUrl")
+      .populate("society", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const data = departments.map((d) => ({
+      department: { id: d._id, name: d.name },
+      society: d.society ? { id: d.society._id, name: d.society.name } : null,
+      head: d.head
+        ? {
+            id: d.head._id,
+            firstName: d.head.firstName,
+            lastName: d.head.lastName,
+            email: d.head.email,
+            avatarUrl: d.head.avatarUrl || "",
+          }
+        : null,
+    }));
+
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load department heads.",
+    });
+  }
+};
+

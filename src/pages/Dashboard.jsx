@@ -25,7 +25,7 @@ import {
   createMemberInviteLink,
   createMemberInviteByEmail,
 } from "@/services/operations/headAPI";
-import { getMySociety } from "@/services/operations/coreAPI";
+import { fetchMyDepartmentHeads, getMySociety } from "@/services/operations/coreAPI";
 import Input from "@/components/ui/input";
 
 function Dashboard() {
@@ -34,6 +34,8 @@ function Dashboard() {
   const [coreAnnouncements, setCoreAnnouncements] = useState([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [coreSociety, setCoreSociety] = useState(null);
+  const [coreDepartmentHeads, setCoreDepartmentHeads] = useState([]);
+  const [coreDepartmentHeadsLoading, setCoreDepartmentHeadsLoading] = useState(false);
   const [college, setCollege] = useState(null);
   const [loadingCollege, setLoadingCollege] = useState(false);
 
@@ -90,6 +92,27 @@ function Dashboard() {
     };
 
     loadCoreSociety();
+  }, [user.role]);
+
+  useEffect(() => {
+    const loadCoreDepartmentHeads = async () => {
+      if (user.role !== ROLES.CORE) return;
+      try {
+        setCoreDepartmentHeadsLoading(true);
+        const res = await fetchMyDepartmentHeads();
+        if (res?.success && Array.isArray(res.data)) {
+          setCoreDepartmentHeads(res.data);
+        } else {
+          setCoreDepartmentHeads([]);
+        }
+      } catch {
+        setCoreDepartmentHeads([]);
+      } finally {
+        setCoreDepartmentHeadsLoading(false);
+      }
+    };
+
+    loadCoreDepartmentHeads();
   }, [user.role]);
 
   useEffect(() => {
@@ -288,12 +311,6 @@ function Dashboard() {
                     <Button onClick={() => navigate("/student/create-application")}>
                       View recruitment as student
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate("/student/core/manage-members")}
-                    >
-                      Manage members
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -322,13 +339,6 @@ function Dashboard() {
                   </Button>
                   <Button
                     className="justify-start gap-2"
-                    onClick={() => navigate("/student/core/manage-members")}
-                  >
-                    <Users2 className="h-4 w-4" />
-                    Manage members
-                  </Button>
-                  <Button
-                    className="justify-start gap-2"
                     onClick={() => navigate("/student/core/departments")}
                   >
                     <IdCard className="h-4 w-4" />
@@ -337,6 +347,72 @@ function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Department heads you added</CardTitle>
+                <CardDescription>
+                  Departments created by you that already have an assigned student head.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {coreDepartmentHeadsLoading ? (
+                  <p className="text-sm text-slate-400">Loading heads…</p>
+                ) : coreDepartmentHeads.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No department heads assigned yet. Create a head invite from “View departments
+                    &amp; heads”.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {coreDepartmentHeads.map((item) => {
+                      const headName = item?.head
+                        ? [item.head.firstName, item.head.lastName].filter(Boolean).join(" ")
+                        : "—";
+                      const departmentName = item?.department?.name || "—";
+                      return (
+                        <div
+                          key={item?.department?.id || `${departmentName}-${item?.head?.id || "head"}`}
+                          className="rounded-lg border border-slate-800 bg-slate-950/40 p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-100">
+                                {departmentName}
+                              </p>
+                              {item?.society?.name && (
+                                <p className="mt-0.5 text-xs text-slate-400">
+                                  Society: {item.society.name}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={item?.head?.avatarUrl || ""} />
+                                <AvatarFallback>
+                                  {(headName || "H")
+                                    .split(" ")
+                                    .slice(0, 2)
+                                    .map((w) => w[0])
+                                    .join("")
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <p className="text-sm text-slate-200">{headName}</p>
+                            {item?.head?.email && (
+                              <p className="text-xs text-slate-400">{item.head.email}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>

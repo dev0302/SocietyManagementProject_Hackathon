@@ -6,6 +6,7 @@ import {
   handleMemberDecision,
   handleMemberRoleChange,
   getDepartmentsSummary,
+  listMyDepartmentHeads,
   listDepartments,
   createHeadInviteLink,
   createHeadInviteByEmail,
@@ -21,6 +22,7 @@ router.post("/members/decision", handleMemberDecision);
 router.post("/members/role", handleMemberRoleChange);
 router.get("/departments", listDepartments);
 router.get("/departments/summary", getDepartmentsSummary);
+router.get("/departments/my-heads", listMyDepartmentHeads);
 router.post("/departments/invite-link", createHeadInviteLink);
 router.post("/departments/invite-email", createHeadInviteByEmail);
 

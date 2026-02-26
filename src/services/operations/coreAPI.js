@@ -36,6 +36,15 @@ export const fetchDepartments = async () => {
   }
 };
 
+export const fetchMyDepartmentHeads = async () => {
+  try {
+    const response = await apiConnector.get("/api/core/departments/my-heads");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const createHeadInviteLink = async (departmentId) => {
   try {
     const response = await apiConnector.post("/api/core/departments/invite-link", {
