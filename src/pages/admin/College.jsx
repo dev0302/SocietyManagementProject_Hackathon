@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -78,6 +79,38 @@ function College() {
   });
   const [submittingEvent, setSubmittingEvent] = useState(false);
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+
+  const GENERIC_SOCIETY_NAME = "GFGxBVCOE";
+  const GENERIC_SOCIETY_URL = "https://bpit-generic-soc.vercel.app/";
+
+  const hasGenericSocietyInCollege = societies.some(
+    (s) => s?.name?.trim().toLowerCase() === GENERIC_SOCIETY_NAME.toLowerCase(),
+  );
+
+  const hasGenericSocietyInOtherSocieties = allSocieties.some(
+    (s) => s?.name?.trim().toLowerCase() === GENERIC_SOCIETY_NAME.toLowerCase(),
+  );
+
+  const handleOpenGenericSociety = () => {
+    const url = GENERIC_SOCIETY_URL;
+    try {
+      if (typeof window !== "undefined") {
+        // Use native View Transitions API where available for smoother navigation
+        if (typeof document !== "undefined" && "startViewTransition" in document) {
+          // @ts-ignore - startViewTransition is not yet in standard TS libs
+          document.startViewTransition(() => {
+            window.open(url, "_blank", "noopener,noreferrer");
+          });
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+      }
+    } catch {
+      if (typeof window !== "undefined") {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    }
+  };
 
   const pendingRequestCount = requests.length;
   const hasPendingRequests = pendingRequestCount > 0;
@@ -1236,12 +1269,37 @@ function College() {
                         View other societies in your college. You cannot edit them.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-slate-300">
+                  <CardContent className="space-y-3 text-sm text-slate-300">
                       {allSocieties.filter((s) => !societies.some((m) => m._id === s._id)).length ===
-                      0 ? (
+                      0 && !hasGenericSocietyInOtherSocieties ? (
                         <p className="text-xs text-slate-500">No other societies.</p>
                       ) : (
                         <div className="grid gap-3 md:grid-cols-2">
+                          {!hasGenericSocietyInOtherSocieties && (
+                            <motion.button
+                              type="button"
+                              onClick={handleOpenGenericSociety}
+                              className="flex items-start gap-3 rounded-md border border-slate-800 bg-slate-900/70 p-3 transition-colors hover:border-sky-500/70 hover:bg-slate-900 cursor-pointer text-left opacity-90"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.97 }}
+                              layout
+                            >
+                              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-800 bg-slate-900 text-xs font-semibold text-sky-300">
+                                GFG
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-slate-100">
+                                  {GENERIC_SOCIETY_NAME}
+                                </p>
+                                <p className="text-[11px] text-slate-500">
+                                  External generic society portal for this college.
+                                </p>
+                                <p className="mt-1 text-[10px] text-sky-400">
+                                  Opens in a new tab →
+                                </p>
+                              </div>
+                            </motion.button>
+                          )}
                           {allSocieties
                             .filter((s) => !societies.some((m) => m._id === s._id))
                             .map((s) => (
@@ -1283,12 +1341,37 @@ function College() {
                   <CardContent className="space-y-3 text-sm text-slate-300">
                     {loadingSocieties ? (
                       <p className="text-xs text-slate-500">Loading societies…</p>
-                    ) : societies.length === 0 ? (
+                    ) : societies.length === 0 && !hasGenericSocietyInCollege ? (
                       <p className="text-xs text-slate-500">
                         No societies have been added for this college yet.
                       </p>
                     ) : (
                       <div className="grid gap-3 md:grid-cols-2">
+                        {!hasGenericSocietyInCollege && (
+                          <motion.button
+                            type="button"
+                            onClick={handleOpenGenericSociety}
+                            className="flex items-start gap-3 rounded-md border border-slate-800 bg-slate-900/70 p-3 transition-colors hover:border-sky-500/70 hover:bg-slate-900 cursor-pointer text-left"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.97 }}
+                            layout
+                          >
+                            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-800 bg-slate-900 text-xs font-semibold text-sky-300">
+                              GFG
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-slate-100">
+                                {GENERIC_SOCIETY_NAME}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                External generic society portal for this college.
+                              </p>
+                              <p className="mt-1 text-[10px] text-sky-400">
+                                Opens in a new tab →
+                              </p>
+                            </div>
+                          </motion.button>
+                        )}
                         {societies.map((s) => (
                           <Link
                             key={s._id}
