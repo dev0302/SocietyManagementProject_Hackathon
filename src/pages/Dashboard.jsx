@@ -28,6 +28,75 @@ import {
 import { fetchMyDepartmentHeads, getMySociety } from "@/services/operations/coreAPI";
 import Input from "@/components/ui/input";
 
+const CORE_INTERVIEW_PANELS = [
+  {
+    id: "panel-1",
+    name: "Panel 1 – Technical",
+    meetingLink: "https://meet.demo/tech-panel-1",
+    meetingTime: "2026-03-10T16:00:00",
+    students: [
+      {
+        name: "Aarav Sharma",
+        year: "2nd year",
+        branch: "CSE",
+        enrollment: "CSE2023-001",
+        email: "aarav.sharma@example.com",
+      },
+      {
+        name: "Ishita Patel",
+        year: "2nd year",
+        branch: "CSE",
+        enrollment: "CSE2023-014",
+        email: "ishita.patel@example.com",
+      },
+      {
+        name: "Rohan Gupta",
+        year: "3rd year",
+        branch: "IT",
+        enrollment: "IT2022-007",
+        email: "rohan.gupta@example.com",
+      },
+    ],
+    head: {
+      name: "Kartik Verma",
+      email: "kartik.verma@university.edu",
+    },
+  },
+  {
+    id: "panel-2",
+    name: "Panel 2 – HR & Management",
+    meetingLink: "https://meet.demo/hr-panel-2",
+    meetingTime: "2026-03-10T17:30:00",
+    students: [
+      {
+        name: "Simran Kaur",
+        year: "1st year",
+        branch: "ECE",
+        enrollment: "ECE2024-011",
+        email: "simran.kaur@example.com",
+      },
+      {
+        name: "Aditya Singh",
+        year: "3rd year",
+        branch: "Mechanical",
+        enrollment: "ME2022-021",
+        email: "aditya.singh@example.com",
+      },
+      {
+        name: "Neha Joshi",
+        year: "2nd year",
+        branch: "CSE-AIML",
+        enrollment: "AI2023-005",
+        email: "neha.joshi@example.com",
+      },
+    ],
+    head: {
+      name: "Mansi Rao",
+      email: "mansi.rao@university.edu",
+    },
+  },
+];
+
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
@@ -36,6 +105,7 @@ function Dashboard() {
   const [coreSociety, setCoreSociety] = useState(null);
   const [coreDepartmentHeads, setCoreDepartmentHeads] = useState([]);
   const [coreDepartmentHeadsLoading, setCoreDepartmentHeadsLoading] = useState(false);
+  const [coreShowInterviewPanels, setCoreShowInterviewPanels] = useState(false);
   const [college, setCollege] = useState(null);
   const [loadingCollege, setLoadingCollege] = useState(false);
 
@@ -339,6 +409,13 @@ function Dashboard() {
                   </Button>
                   <Button
                     className="justify-start gap-2"
+                    onClick={() => setCoreShowInterviewPanels((v) => !v)}
+                  >
+                    <Users2 className="h-4 w-4" />
+                    {coreShowInterviewPanels ? "Hide interview panels" : "Create panels for interview"}
+                  </Button>
+                  <Button
+                    className="justify-start gap-2"
                     onClick={() => navigate("/student/core/departments")}
                   >
                     <IdCard className="h-4 w-4" />
@@ -347,6 +424,66 @@ function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            {coreShowInterviewPanels && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Interview panels (demo)</CardTitle>
+                  <CardDescription>
+                    Hardcoded example panels with allotted heads, students, timings, and meet links.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {CORE_INTERVIEW_PANELS.map((panel) => (
+                    <div
+                      key={panel.id}
+                      className="rounded-lg border border-slate-800 bg-slate-950/40 p-3 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-100">{panel.name}</p>
+                          <p className="text-xs text-slate-400">
+                            Meeting time:{" "}
+                            {new Date(panel.meetingTime).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            Allotted head: {panel.head.name} ({panel.head.email})
+                          </p>
+                        </div>
+                        <a
+                          href={panel.meetingLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-medium text-sky-400 hover:text-sky-300"
+                        >
+                          Join demo meet →
+                        </a>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs font-semibold text-slate-300">Students in this panel</p>
+                        {panel.students.map((s) => (
+                          <div
+                            key={s.enrollment}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-900/40 px-2 py-1.5"
+                          >
+                            <div>
+                              <p className="text-sm text-slate-100">{s.name}</p>
+                              <p className="text-xs text-slate-400">
+                                {s.year} • {s.branch} • {s.enrollment}
+                              </p>
+                            </div>
+                            <p className="text-xs text-slate-400">{s.email}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
